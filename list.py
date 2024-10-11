@@ -46,7 +46,9 @@ def handle_get_list_request(transaction, session):
         }
         return app.xml_response(response)
 
-    return app.xml_response({'Error': {'message': 'Session not found'}}), 400
+    # Invalid session ID
+    resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
+    return app.xml_response(resp)
 
 
 def handle_list_manage_request(list_manage_request, transaction, session):
@@ -91,9 +93,7 @@ def handle_list_manage_request(list_manage_request, transaction, session):
                         },
                         'TransactionContent': {
                             'ListManage-Response': {
-                                'Result': {
-                                    'Code': 200
-                                },
+                                'Result': app.form_status(200),
                                 'NickList': {
                                     'NickName': nicknames
                                 },
@@ -109,4 +109,6 @@ def handle_list_manage_request(list_manage_request, transaction, session):
 
         return app.xml_response(response)
 
-    return app.xml_response({'Error': {'message': 'Session not found'}}), 400
+    # Invalid session ID
+    resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
+    return app.xml_response(resp)

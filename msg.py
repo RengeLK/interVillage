@@ -24,7 +24,9 @@ def handle_send_message(send_message_request, transaction, session):
             break
 
     if not user:
-        return app.xml_response({'Error': {'message': 'Session not found or invalid request'}}), 400
+        # Invalid session ID
+        resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
+        return app.xml_response(resp)
 
     ### !!! BROKEN !!! ###
     #if user != sender:
@@ -32,21 +34,19 @@ def handle_send_message(send_message_request, transaction, session):
 
     content = {
         'SendMessage-Response': {
-            'Result': {
-                'Code': 200,
-                'Description': 'nig'
-            },
-            'MessageID': 'cojavim4'
+            'Result': app.form_status(200),
+            'MessageID': 'random4'
         }
     }
 
-    # TODO: udelej neco s tou zpravou xd
+    # TODO: actually do something with this
     data = {
-        'content': f'komu: {recipient}\nod: {sender}\nzprava: {msgcontent}\ntest kod lol'
+        'content': f'to: {recipient}\nfrom: {sender}\nmessage: {msgcontent}\nintervillage notification!'
     }
 
     webhook = "https://discord.com/api/webhooks/1292936265297301585/NnEP30QIVjhs1DJtwXrJlJuqZkTFDCemFjv6_HLbiEvBEwdiyNmSCoDgblrdVmAilIzy"
     send = requests.post(webhook, json=data)
+    print(send.status_code)
 
     response = app.form_wv_message(content, transaction_id, session_id)
     return app.xml_response(response)

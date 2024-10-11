@@ -13,13 +13,11 @@ def handle_keep_alive_request(keep_alive_request, transaction, session):
     transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
 
-    # Respond to the keep-alive request with a success message and KeepAliveTime
+    # Blindly accept the KeepAlive value
+    # TODO: implement 605 New Value Not Accepted
     resp = {
         'KeepAlive-Response': {
-            'Result': {
-                'Code': 200,
-                'Description': 'Successfully completed.'
-            },
+            'Result': app.form_status(200),
             'KeepAliveTime': time_to_live
         }
     }

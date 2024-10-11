@@ -12,16 +12,12 @@ import secret, basic, poll, list, presence, msg  # import all other files
 
 app = Flask(__name__)
 
-# TODO: implement NewMessage (and, like, everything else)
-# TODO: cleanup comments after my boy chatgpt
-# TODO: fix ALL the error codes using your brand new form_status func
-# TODO: rewrite all responses to use form_wv_message
+# TODO: implement NewMessage and MessageDelivered (and, like, everything else)
+# TODO: rewrite all responses to use app.form_wv_message
 
 # Import secrets here so I don't have to rewrite everything
 users = secret.users
-
-# Terms of Use text (a simple message)
-terms_of_use = "By using this service, you agree to the following terms: [...]"
+terms = secret.terms
 
 # Regular browser visitors
 @app.route('/', methods=['GET'])
@@ -29,20 +25,21 @@ def root():
     return 'you need an imps client to connect to intervillage\n-renge 2024'
 
 # Actual IMPS route
-@app.route('/imps', methods=['POST'])
+# noinspection PyBroadException
+@app.route('/imps', methods=['GET', 'POST'])
 def imps():
-    # Convert XML body to a Python dictionary
+    # Convert XML body to dict
     try:
         imps_data = xmltodict.parse(request.data)
         print("Received IMPS request:", request.data)
     except:
-        resp = form_wv_message(form_status(503, 'Unknown request type'), 0)
+        resp = form_wv_message({'Status': form_status(503, 'Unknown request type')}, 0)
         return xml_response(resp)
 
     # Check for specific request types
     if 'WV-CSP-Message' in imps_data:
         return handle_wv_csp_message(imps_data['WV-CSP-Message'])
-    resp = form_wv_message(form_status(501), 0)
+    resp = form_wv_message({'Status': form_status(501)}, 0)
     return xml_response(resp)
 
 def handle_wv_csp_message(message_request):
@@ -92,11 +89,12 @@ def handle_wv_csp_message(message_request):
 
     # Unknown request type
     else:
-        resp = form_wv_message(form_status(501), transaction['TransactionDescriptor']['TransactionID'])
+        resp = form_wv_message({'Status': form_status(501)}, transaction['TransactionDescriptor']['TransactionID'])
         return xml_response(resp)
 
 
 def form_status(code: int, desc = None):
+    # Almost all the status codes from the specs, right here!
     codes = {
         200: 'Success',
         201: 'Partially Successful',
@@ -106,18 +104,18 @@ def form_status(code: int, desc = None):
         401: 'Unauthorized',
         402: 'Bad Parameter',
         403: 'Forbidden/Bad Login',
-        404: 'Not Found',  # Wow, how surprising...
+        404: 'Not Found',
         405: 'Service Not Supported',
         409: 'Invalid Password',
         415: 'Unsupported Media Type',
-        420: 'Invalid Transaction',  # fani
+        420: 'Invalid Transaction',
         422: 'ClientID Mismatch',
         423: 'Invalid InvitationID',
         426: 'Invalid MessageID',
         431: 'Unauthorized Group',
 
         500: 'Server Error',  # nig
-        501: 'Not Implemented',
+        501: 'Not Implemented',  # nig
         503: 'Service Unavailable',
         504: 'Timeout',
         506: 'Service Not Agreed',
@@ -145,15 +143,14 @@ def form_status(code: int, desc = None):
     if not desc:
         desc = codes[code]
     resp = {
-        'Status': {
-            'Code': code,
-            'Description': desc
-        }
+        'Code': code,
+        'Description': desc
     }
     return resp
 
 
 def form_wv_message(content: dict, transaction_id, session_id = None):
+    # If a session ID was provided, make sure to set type to Inband
     if session_id:
         ses = {
             'SessionType': 'Inband',
@@ -180,6 +177,7 @@ def form_wv_message(content: dict, transaction_id, session_id = None):
     response['WV-CSP-Message']['Session']['Transaction']['TransactionContent'] = content
     return response
 
+# Convert dict back to XML
 def xml_response(data_dict):
     xml_data = xmltodict.unparse(data_dict, pretty=True, full_document=True)
     # Manually add the xmlns

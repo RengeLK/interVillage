@@ -9,7 +9,7 @@
 import app
 import uuid
 
-# Function to handle login requests
+
 def handle_login(login_request, transaction):
     user_id = login_request.get('UserID')
     #client_id = login_request.get('ClientID', {}).get('URL')
@@ -18,40 +18,23 @@ def handle_login(login_request, transaction):
 
     # Check if the user exists and the password is correct
     if user_id in app.users and app.users[user_id]['password'] == password:
-        # Generate a new unique session ID for the user
-        session_id = str(uuid.uuid4())  # Generating a unique SessionID
-        app.users[user_id]['session_id'] = session_id  # Store session ID
+        # Generate a unique session ID for the user
+        session_id = str(uuid.uuid4())
+        app.users[user_id]['session_id'] = session_id  # save it
+        transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
 
-        # Respond with terms of use and a successful login response
-        response = {
-            'WV-CSP-Message': {
-                'Session': {
-                    'SessionDescriptor': {
-                        'SessionType': 'Outband'
-                    },
-                    'Transaction': {
-                        'TransactionDescriptor': {
-                            'TransactionMode': 'Response',
-                            'TransactionID': transaction.get('TransactionDescriptor', {}).get('TransactionID'),
-                            'Poll': 'F'
-                        },
-                        'TransactionContent': {
-                            'Login-Response': {
-                                'UserID': user_id,
-                                'Result': {
-                                    'Code': 200,
-                                    'Description': 'test success'
-                                },
-                                'SessionID': session_id,
-                                #'TermsOfUse': terms_of_use,
-                                'KeepAliveTime': time_to_live,
-                                'CapabilityRequest': 'T'
-                            }
-                        }
-                    }
-                }
+        resp = {
+            'Login-Response': {
+                'UserID': user_id,
+                'Result': app.form_status(200),
+                'SessionID': session_id,
+                # 'TermsOfUse': terms,
+                'KeepAliveTime': time_to_live,
+                'CapabilityRequest': 'T'
             }
         }
+
+        response = app.form_wv_message(resp, transaction_id)
         return app.xml_response(response)
 
     # If login fails, return an error response
@@ -66,10 +49,7 @@ def handle_login(login_request, transaction):
                     'TransactionContent': {
                         'Login-Response': {
                             'UserID': user_id if user_id else '',
-                            'Result': {
-                                'Code': 401,
-                                'Description': 'Invalid username or password'
-                            }
+                            'Result': app.form_status(409)  # Invalid Password
                         }
                     }
                 }
@@ -95,16 +75,16 @@ def handle_logout(transaction, session):
 
         content = {
             'Disconnect': {
-                'Result': {
-                    'Code': 200
-                }
+                'Result': app.form_status(200)
             }
         }
 
         response = app.form_wv_message(content, transaction_id)
         return app.xml_response(response)
 
-    return app.xml_response({'Error': {'message': 'Session not found'}}), 400
+    # Invalid session ID
+    resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
+    return app.xml_response(resp)
 
 
 def handle_client_capability(capability_request, transaction, session):
@@ -187,10 +167,7 @@ def handle_client_capability(capability_request, transaction, session):
                             'ClientID': {
                                 'URL': client_id
                             },
-                            'Result': {
-                                'Code': 400,
-                                'Description': 'Client ID not found'
-                            }
+                            'Result': app.form_status(422)  # ClientID Mismatch
                         }
                     }
                 }
@@ -205,7 +182,7 @@ def handle_service_request(service_request, transaction, session):
     transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
 
-    # Assuming the server supports the same features requested by the client
+    # Is meant to only respond with features that the client requested, but the server *cannot* provide
     response = {
         'WV-CSP-Message': {
             'Session': {
@@ -226,11 +203,7 @@ def handle_service_request(service_request, transaction, session):
                             },
                             'Functions': {
                                 'WVCSPFeat': {
-                                    'FundamentalFeat': {
-                                        #'SearchFunc': {}
-                                    },
-                                    #'PresenceFeat': {},  # Assuming server supports Presence feature
-                                    'IMFeat': {}  # Assuming server supports IM (Instant Messaging) feature
+                                    'PresenceFeat': {}
                                 }
                             },
                             'AllFunctions': {
@@ -243,4 +216,3 @@ def handle_service_request(service_request, transaction, session):
         }
     }
     return app.xml_response(response)
-# TODO: uhh it should respond with funcs the server DOESN'T support

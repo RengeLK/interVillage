@@ -41,10 +41,12 @@ def handle_update_presence_request(update_presence_request, transaction, session
             user['presence']['StatusText'] = ''  # Set to empty if Qualifier is F
 
         # Prepare the response
-        resp = app.form_wv_message(app.form_status(200), transaction_id, session_id)
+        resp = app.form_wv_message({'Status': app.form_status(200)}, transaction_id, session_id)
         return app.xml_response(resp)
 
-    return app.xml_response({'Error': {'message': 'Session not found or invalid request'}}), 400
+    # Invalid session ID
+    resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
+    return app.xml_response(resp)
 
 
 def handle_get_presence_request(get_presence_request, transaction, session):
@@ -60,7 +62,9 @@ def handle_get_presence_request(get_presence_request, transaction, session):
             break
 
     if not user:
-        return app.xml_response({'Error': {'message': 'Session not found or invalid request'}}), 400
+        # Invalid session ID
+        resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
+        return app.xml_response(resp)
 
     # Find the owner of the contact list
     owner = None
@@ -70,7 +74,9 @@ def handle_get_presence_request(get_presence_request, transaction, session):
             break
 
     if owner is None:
-        return app.xml_response({'Error': {'message': 'Contact list not found'}}), 400
+        # Nonexistent Contact List
+        resp = app.form_wv_message({'Status': app.form_status(700)}, transaction_id, session_id)
+        return app.xml_response(resp)
 
     # Prepare the response
     response = {
@@ -88,10 +94,7 @@ def handle_get_presence_request(get_presence_request, transaction, session):
                     },
                     'TransactionContent': {
                         'GetPresence-Response': {
-                            'Result': {
-                                'Code': 200,
-                                'Description': 'Successfully completed.'
-                            },
+                            'Result': app.form_status(200),
                             'Presence': []
                         }
                     }
