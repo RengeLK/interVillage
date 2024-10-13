@@ -6,26 +6,24 @@
 ## app.py - main file         ##
 ## -renge 2024                ##
 ################################
-from crypt import methods
-
 from flask import Flask, request
 import xmltodict
 import secret, basic, poll, list, presence, msg  # import all other files
 
 app = Flask(__name__)
 
-# TODO: implement NewMessage and MessageDelivered (and, like, everything else)
-
 # Import secrets here so I don't have to rewrite everything
 users = secret.users
 terms = secret.terms
+wvhook = secret.wvhook
 
 # Regular browser visitors
 @app.route('/', methods=['GET'])
 def root():
     return 'you need an imps client to connect to intervillage\n-renge 2024'
 
-@app.route('/add', methods=['POST'])
+# Manually add messages to the queue (pre-backend implement)
+'''@app.route('/add', methods=['POST'])
 def post():
     data = xmltodict.parse(request.data)['xml']
     recipient = data['recipient']
@@ -33,7 +31,7 @@ def post():
     message_id = data['id']
     content = data['content']
     poll.send_message_to_queue(recipient, sender, message_id, content)
-    return ''
+    return '''
 
 # Actual IMPS route
 # noinspection PyBroadException
@@ -74,10 +72,6 @@ def handle_wv_csp_message(message_request):
     elif 'Service-Request' in transaction_content:
         return basic.handle_service_request(transaction_content['Service-Request'], transaction, session)
 
-    # Handle KeepAlive-Request
-    elif 'KeepAlive-Request' in transaction_content:
-        return poll.handle_keep_alive_request(transaction_content['KeepAlive-Request'], transaction, session)
-
     # Handle GetList-Request
     elif 'GetList-Request' in transaction_content:
         return list.handle_get_list_request(transaction, session)
@@ -97,6 +91,10 @@ def handle_wv_csp_message(message_request):
     # Handle SendMessage-Request
     elif 'SendMessage-Request' in transaction_content:
         return msg.handle_send_message(transaction_content['SendMessage-Request'], transaction, session)
+
+    # Handle KeepAlive-Request
+    elif 'KeepAlive-Request' in transaction_content:
+        return poll.handle_keep_alive_request(transaction_content['KeepAlive-Request'], transaction, session)
 
     # Handle Polling-Request
     elif 'Polling-Request' in transaction_content:

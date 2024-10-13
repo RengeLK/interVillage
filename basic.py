@@ -17,7 +17,7 @@ def handle_login(login_request, transaction):
     time_to_live = login_request.get('TimeToLive')
 
     # Check if the user exists and the password is correct
-    if user_id in app.users and app.users[user_id]['password'] == password:
+    if user_id in app.users and app.users[user_id]['password'] == password and password != 'null':
         # Generate a unique session ID for the user
         session_id = str(uuid.uuid4())
         app.users[user_id]['session_id'] = session_id  # save it

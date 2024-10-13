@@ -35,7 +35,7 @@ def handle_keep_alive_request(keep_alive_request, transaction, session):
     return app.xml_response(response)
 
 
-# TODO: !!!!! move to individual user in secret.py !!!!!
+# TODO: Redo the polling system for individual platforms and make queues part of the user DB
 message_queue = []
 # Example function to add a new message to the message queue
 def send_message_to_queue(recipient, sender, message_id, content):
@@ -61,12 +61,12 @@ def handle_polling_request(session):
             sender = new_message['sender']
             message = new_message['content']
             length = len(message)
-            id = new_message['message_id']
+            message_id = new_message['message_id']
 
             resp = {
                 'NewMessage': {
                     'MessageInfo': {
-                        'MessageID': id,
+                        'MessageID': message_id,
                         'ContentType': 'text/plain; charset=utf-8',
                         'ContentEncoding': 'None',
                         'ContentSize': length,
