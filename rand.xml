@@ -456,3 +456,28 @@
 		</Transaction>
 	</Session>
 </WV-CSP-Message>
+
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<WV-CSP-Message
+	xmlns="http://www.wireless-village.org/CSP1.1">
+	<Session>
+		<SessionDescriptor>
+			<SessionType>Inband</SessionType>
+			<SessionID>5a8cda44-f11e-447a-86ec-4fc17a414eb4</SessionID>
+		</SessionDescriptor>
+		<Transaction>
+			<TransactionDescriptor>
+				<TransactionMode>Request</TransactionMode>
+				<TransactionID>8</TransactionID>
+			</TransactionDescriptor>
+			<TransactionContent
+				xmlns="http://www.wireless-village.org/TRC1.1">
+				<KeepAlive-Request>
+					<TimeToLive>10</TimeToLive>
+				</KeepAlive-Request>
+			</TransactionContent>
+		</Transaction>
+	</Session>
+</WV-CSP-Message>

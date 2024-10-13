@@ -13,12 +13,12 @@ def handle_keep_alive_request(keep_alive_request, transaction, session):
     transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
 
-    # Only accept values below or equal 600 seconds (10 minutes)
-    if time_to_live <= 600:
+    # Only accept values below or equal 60 seconds
+    if int(time_to_live) <= 60:
         resp = {
             'KeepAlive-Response': {
                 'Result': app.form_status(200),
-                'KeepAliveTime': time_to_live
+                'KeepAliveTime': int(time_to_live)
             }
         }
         response = app.form_wv_message(resp, transaction_id, session_id)
@@ -27,7 +27,7 @@ def handle_keep_alive_request(keep_alive_request, transaction, session):
         resp = {
             'KeepAlive-Response': {
                 'Result': app.form_status(605),
-                'KeepAliveTime': 600
+                'KeepAliveTime': 60
             }
         }
         response = app.form_wv_message(resp, transaction_id, session_id)
