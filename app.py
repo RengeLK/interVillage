@@ -86,8 +86,17 @@ def handle_wv_csp_message(message_request):
     elif 'SendMessage-Request' in transaction_content:
         return msg.handle_send_message(transaction_content['SendMessage-Request'], transaction, session)
 
+    # Handle Polling-Request
+    elif 'Polling-Request' in transaction_content:
+        return poll.handle_polling_request(session)
+
+    # Handle MessageDelivered (just ignore it)
+    elif 'MessageDelivered' in transaction_content:
+        return ''
+
     # Unknown request type
     else:
+        print('!!!!!!!!!!!!! NOT IMPLEMENTED !!!!!!!!!!!!')
         resp = form_wv_message({'Status': form_status(501)}, transaction['TransactionDescriptor']['TransactionID'])
         return xml_response(resp)
 
@@ -113,8 +122,8 @@ def form_status(code: int, desc = None):
         426: 'Invalid MessageID',
         431: 'Unauthorized Group',
 
-        500: 'Server Error',  # nig
-        501: 'Not Implemented',  # nig
+        500: 'Server Error',
+        501: 'Not Implemented',
         503: 'Service Unavailable',
         504: 'Timeout',
         506: 'Service Not Agreed',
