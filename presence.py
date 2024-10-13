@@ -78,31 +78,6 @@ def handle_get_presence_request(get_presence_request, transaction, session):
         resp = app.form_wv_message({'Status': app.form_status(700)}, transaction_id, session_id)
         return app.xml_response(resp)
 
-    # Prepare the response
-    response = {
-        'WV-CSP-Message': {
-            'Session': {
-                'SessionDescriptor': {
-                    'SessionType': 'Inband',
-                    'SessionID': session_id
-                },
-                'Transaction': {
-                    'TransactionDescriptor': {
-                        'TransactionMode': 'Response',
-                        'TransactionID': transaction_id,
-                        'Poll': 'F'
-                    },
-                    'TransactionContent': {
-                        'GetPresence-Response': {
-                            'Result': app.form_status(200),
-                            'Presence': []
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     # Collect nicknames and presence details of users in the contact list
     nicknames = []
     for n, u in app.users.items():
@@ -126,7 +101,13 @@ def handle_get_presence_request(get_presence_request, transaction, session):
                     }
                 })
 
-    # Add nicknames and presence info to the response
-    response['WV-CSP-Message']['Session']['Transaction']['TransactionContent']['GetPresence-Response']['Presence'] = nicknames
+    # Prepare the response
+    resp = {
+        'GetPresence-Response': {
+            'Result': app.form_status(200),
+            'Presence': nicknames
+        }
+    }
 
+    response = app.form_wv_message(resp, transaction_id, session_id)
     return app.xml_response(response)

@@ -13,7 +13,6 @@ import secret, basic, poll, list, presence, msg  # import all other files
 app = Flask(__name__)
 
 # TODO: implement NewMessage and MessageDelivered (and, like, everything else)
-# TODO: rewrite all responses to use app.form_wv_message
 
 # Import secrets here so I don't have to rewrite everything
 users = secret.users
@@ -31,7 +30,7 @@ def imps():
     # Convert XML body to dict
     try:
         imps_data = xmltodict.parse(request.data)
-        print("Received IMPS request:", request.data)
+        print("Received IMPS request: ", request.data)
     except:
         resp = form_wv_message({'Status': form_status(503, 'Unknown request type')}, 0)
         return xml_response(resp)
@@ -168,13 +167,11 @@ def form_wv_message(content: dict, transaction_id, session_id = None):
                         'TransactionID': transaction_id,
                         'Poll': 'F'
                     },
-                    'TransactionContent': {}
+                    'TransactionContent': content
                 }
             }
         }
     }
-
-    response['WV-CSP-Message']['Session']['Transaction']['TransactionContent'] = content
     return response
 
 # Convert dict back to XML

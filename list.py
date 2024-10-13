@@ -21,29 +21,13 @@ def handle_get_list_request(transaction, session):
 
     if user:
         # Respond with the user's contact lists and default contact list
-        response = {
-            'WV-CSP-Message': {
-                'Session': {
-                    'SessionDescriptor': {
-                        'SessionType': 'Inband',
-                        'SessionID': session_id
-                    },
-                    'Transaction': {
-                        'TransactionDescriptor': {
-                            'TransactionMode': 'Response',
-                            'TransactionID': transaction_id,
-                            'Poll': 'F'
-                        },
-                        'TransactionContent': {
-                            'GetList-Response': {
-                                'ContactList': user['contact_lists'],
-                                'DefaultContactList': user['default_contact_list']
-                            }
-                        }
-                    }
-                }
+        resp = {
+            'GetList-Response': {
+                'ContactList': user['contact_lists'],
+                'DefaultContactList': user['default_contact_list']
             }
         }
+        response = app.form_wv_message(resp, transaction_id, session_id)
         return app.xml_response(response)
 
     # Invalid session ID
@@ -78,35 +62,18 @@ def handle_list_manage_request(list_manage_request, transaction, session):
             {'Name': 'Default', 'Value': defaultCL}
         ]
 
-        response = {
-            'WV-CSP-Message': {
-                'Session': {
-                    'SessionDescriptor': {
-                        'SessionType': 'Inband',
-                        'SessionID': session_id
-                    },
-                    'Transaction': {
-                        'TransactionDescriptor': {
-                            'TransactionMode': 'Response',
-                            'TransactionID': transaction_id,
-                            'Poll': 'F'
-                        },
-                        'TransactionContent': {
-                            'ListManage-Response': {
-                                'Result': app.form_status(200),
-                                'NickList': {
-                                    'NickName': nicknames
-                                },
-                                'ContactListProperties': {
-                                    'Property': contact_list_properties
-                                }
-                            }
-                        }
-                    }
+        resp = {
+            'ListManage-Response': {
+                'Result': app.form_status(200),
+                'NickList': {
+                    'NickName': nicknames
+                },
+                'ContactListProperties': {
+                    'Property': contact_list_properties
                 }
             }
         }
-
+        response = app.form_wv_message(resp, transaction_id, session_id)
         return app.xml_response(response)
 
     # Invalid session ID

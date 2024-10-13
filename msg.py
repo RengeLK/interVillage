@@ -39,7 +39,6 @@ def handle_send_message(send_message_request, transaction, session):
         }
     }
 
-    # TODO: actually do something with this
     data = {
         'content': f'to: {recipient}\nfrom: {sender}\nmessage: {msgcontent}\nintervillage notification!'
     }

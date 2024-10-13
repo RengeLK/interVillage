@@ -38,24 +38,13 @@ def handle_login(login_request, transaction):
         return app.xml_response(response)
 
     # If login fails, return an error response
-    response = {
-        'WV-CSP-Message': {
-            'Session': {
-                'Transaction': {
-                    'TransactionDescriptor': {
-                        'TransactionMode': 'Response',
-                        'TransactionID': transaction.get('TransactionDescriptor', {}).get('TransactionID')
-                    },
-                    'TransactionContent': {
-                        'Login-Response': {
-                            'UserID': user_id if user_id else '',
-                            'Result': app.form_status(409)  # Invalid Password
-                        }
-                    }
-                }
-            }
+    resp = {
+        'Login-Response': {
+            'UserID': user_id if user_id else '',
+            'Result': app.form_status(409)  # Invalid Password
         }
     }
+    response = app.form_wv_message(resp, transaction)
     return app.xml_response(response)
 
 
@@ -101,79 +90,48 @@ def handle_client_capability(capability_request, transaction, session):
 
     if user:
         # Respond with capabilities according to the specs
-        response = {
-            'WV-CSP-Message': {
-                'Session': {
-                    'SessionDescriptor': {
-                        'SessionType': 'Inband',
-                        'SessionID': session_id
-                    },
-                    'Transaction': {
-                        'TransactionDescriptor': {
-                            'TransactionMode': 'Response',
-                            'TransactionID': transaction_id,
-                            'Poll': 'F'  # Assuming 'F' indicates no polling required
-                        },
-                        'TransactionContent': {
-                            'ClientCapability-Response': {
-                                'ClientID': {
-                                    'URL': client_id  # Include the ClientID URL as specified
-                                },
-                                'CapabilityList': {
-                                    'ClientType': 'MOBILE_PHONE',
-                                    'InitialDeliveryMethod': 'P',
-                                    'AcceptedContentType': [
-                                        'text/plain; charset=utf-8',
-                                        'application/x-sms',
-                                        'text/x-vCard; charset=utf-8',
-                                        'text/x-vCalendar; charset=utf-8'
-                                    ],
-                                    'AcceptedTransferEncoding': 'BASE64',
-                                    'AcceptedContentLength': 32767,
-                                    'SupportedBearer': ['HTTP'],
-                                    'MultiTrans': 1,
-                                    'ParserSize': 32767,
-                                    'SupportedCIRMethod': [
-                                        'WAPSMS',
-                                        'WAPUDP',
-                                        'SUDP',
-                                        'STCP'
-                                    ],
-                                    'UDPPort': 4040,
-                                    'TCPAddress': 'iv.renge4.net',
-                                    'TCPPort': 4040,
-                                    'ServerPollMin': 3
-                                }
-                            }
-                        }
-                    }
+        resp = {
+            'ClientCapability-Response': {
+                'ClientID': {
+                    'URL': client_id  # Include the ClientID URL as specified
+                },
+                'CapabilityList': {
+                    'ClientType': 'MOBILE_PHONE',
+                    'InitialDeliveryMethod': 'P',
+                    'AcceptedContentType': [
+                        #'text/x-vCard; charset=utf-8',
+                        #'text/x-vCalendar; charset=utf-8',
+                        'text/plain; charset=utf-8',
+                        'application/x-sms'
+                    ],
+                    'AcceptedTransferEncoding': 'BASE64',
+                    'AcceptedContentLength': 32767,
+                    'SupportedBearer': ['HTTP'],
+                    'MultiTrans': 1,
+                    'ParserSize': 32767,
+                    'SupportedCIRMethod': [
+                            'WAPSMS',
+                            'STCP'
+                    ],
+                    'TCPAddress': 'iv.renge4.net',
+                    'TCPPort': 4040,
+                    'ServerPollMin': 10
                 }
             }
         }
+        response = app.form_wv_message(resp, transaction_id, session_id)
         return app.xml_response(response)
 
     # If client ID is not found, return an error response
-    response = {
-        'WV-CSP-Message': {
-            'Session': {
-                'Transaction': {
-                    'TransactionDescriptor': {
-                        'TransactionMode': 'Response',
-                        'TransactionID': transaction.get('TransactionDescriptor', {}).get('TransactionID'),
-                        'Poll': 'F'
-                    },
-                    'TransactionContent': {
-                        'ClientCapability-Response': {
-                            'ClientID': {
-                                'URL': client_id
-                            },
-                            'Result': app.form_status(422)  # ClientID Mismatch
-                        }
-                    }
-                }
+    resp = {
+        'ClientCapability-Response': {
+            'ClientID': {
+                'URL': client_id
+            },
+                'Result': app.form_status(422)  # ClientID Mismatch
             }
-        }
     }
+    response = app.form_wv_message(resp, transaction_id, session_id)
     return app.xml_response(response)
 
 
@@ -183,36 +141,20 @@ def handle_service_request(service_request, transaction, session):
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
 
     # Is meant to only respond with features that the client requested, but the server *cannot* provide
-    response = {
-        'WV-CSP-Message': {
-            'Session': {
-                'SessionDescriptor': {
-                    'SessionType': 'Inband',
-                    'SessionID': session_id
-                },
-                'Transaction': {
-                    'TransactionDescriptor': {
-                        'TransactionMode': 'Response',
-                        'TransactionID': transaction_id,
-                        'Poll': 'F'
-                    },
-                    'TransactionContent': {
-                        'Service-Response': {
-                            'ClientID': {
-                                'URL': client_id
-                            },
-                            'Functions': {
-                                'WVCSPFeat': {
-                                    'PresenceFeat': {}
-                                }
-                            },
-                            'AllFunctions': {
-                                'WVCSPFeat': {}
-                            }
-                        }
-                    }
+    resp = {
+        'Service-Response': {
+            'ClientID': {
+                'URL': client_id
+            },
+            'Functions': {
+                'WVCSPFeat': {
+                    'PresenceFeat': {}
                 }
+            },
+            'AllFunctions': {
+                'WVCSPFeat': {}
             }
         }
     }
+    response = app.form_wv_message(resp, transaction_id, session_id)
     return app.xml_response(response)
