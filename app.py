@@ -6,6 +6,8 @@
 ## app.py - main file         ##
 ## -renge 2024                ##
 ################################
+from crypt import methods
+
 from flask import Flask, request
 import xmltodict
 import secret, basic, poll, list, presence, msg  # import all other files
@@ -22,6 +24,16 @@ terms = secret.terms
 @app.route('/', methods=['GET'])
 def root():
     return 'you need an imps client to connect to intervillage\n-renge 2024'
+
+@app.route('/add', methods=['POST'])
+def post():
+    data = xmltodict.parse(request.data)['xml']
+    recipient = data['recipient']
+    sender = data['sender']
+    message_id = data['id']
+    content = data['content']
+    poll.send_message_to_queue(recipient, sender, message_id, content)
+    return ''
 
 # Actual IMPS route
 # noinspection PyBroadException

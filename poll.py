@@ -7,6 +7,7 @@
 ## -renge 2024                ##
 ################################
 import app
+import time
 
 def handle_keep_alive_request(keep_alive_request, transaction, session):
     time_to_live = keep_alive_request.get('TimeToLive')
@@ -34,31 +35,56 @@ def handle_keep_alive_request(keep_alive_request, transaction, session):
     return app.xml_response(response)
 
 
+# TODO: !!!!! move to individual user in secret.py !!!!!
+message_queue = []
+# Example function to add a new message to the message queue
+def send_message_to_queue(recipient, sender, message_id, content):
+    message_queue.append({
+        'recipient': recipient,
+        'sender': sender,
+        'message_id': message_id,
+        'content': content
+    })
+
 def handle_polling_request(session):
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
+    timeout = 30  # maximum time to keep the connection open (in seconds)
+    poll_interval = 2  # how often to check for new messages (in seconds)
 
-    # TODO: implement actual message checking
-    if True:
-        recipient = 'wv:renge'
-        sender = 'wv:kokot'
-        message = 'nesnasim polling'
-        length = len(message)
+    start_time = time.time()
 
-        resp = {
-            'NewMessage': {
-                'MessageInfo': {
-                    'MessageID': 'nesnasimkrisi',
-                    'ContentType': 'text/plain; charset=utf-8',
-                    'ContentEncoding': 'None',
-                    'ContentSize': length,
-                    'Recipient': {'User': {'UserID': recipient}},
-                    'Sender': {'User': {'UserID': sender}},
-                    'DateTime': 'unused',
-                    'Validity': 600
-                },
-                'ContentData': message
+    while time.time() - start_time < timeout:
+        # Check if there is a new message in the message queue
+        if message_queue:
+            new_message = message_queue.pop(0)  # Get the first message in the queue
+            recipient = new_message['recipient']
+            sender = new_message['sender']
+            message = new_message['content']
+            length = len(message)
+            id = new_message['message_id']
+
+            resp = {
+                'NewMessage': {
+                    'MessageInfo': {
+                        'MessageID': id,
+                        'ContentType': 'text/plain; charset=utf-8',
+                        'ContentEncoding': 'None',
+                        'ContentSize': length,
+                        'Recipient': {'User': {'UserID': recipient}},
+                        'Sender': {'User': {'UserID': sender}},
+                        'DateTime': 'unused',
+                        'Validity': 600
+                    },
+                    'ContentData': message
+                }
             }
-        }
 
-        response = app.form_wv_message(resp, 0, session_id)
-        return app.xml_response(response)
+            response = app.form_wv_message(resp, 0, session_id)
+            return app.xml_response(response)
+
+        # Sleep for a short period before checking again
+        time.sleep(poll_interval)
+
+    # If no new messages, return a no-content response
+    resp = app.form_wv_message({'Status': app.form_status(504)}, 0, session_id)
+    return app.xml_response(resp)
