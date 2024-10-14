@@ -231,9 +231,9 @@ async def listen_for_dms(user_token, user_id):
                     message_id = 'dcmsgidk'
                     content = message['content']
 
-                    for user_id, user_data in users.items():  # find the actual author through 'discord'
+                    for userr_id, user_data in users.items():  # find the actual author through 'discord'
                         if 'discord' in user_data and user_data['discord'] == author_id:
-                            sender = user_id
+                            sender = userr_id
                             print(f"New DM! for {user_id} from {author}: {content}")
                             poll.send_message_to_queue(user_id, sender, message_id, content)  # send it!
                         else:
