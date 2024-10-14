@@ -37,7 +37,6 @@ def handle_keep_alive_request(keep_alive_request, transaction, session):
 
 # TODO: Redo the polling system for individual platforms and make queues part of the user DB
 message_queue = []
-# Example function to add a new message to the message queue
 def send_message_to_queue(recipient, sender, message_id, content):
     message_queue.append({
         'recipient': recipient,
@@ -48,7 +47,7 @@ def send_message_to_queue(recipient, sender, message_id, content):
 
 def handle_polling_request(session):
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
-    timeout = 30  # maximum time to keep the connection open (in seconds)
+    timeout = 10  # maximum time to keep the connection open (in seconds)
     poll_interval = 2  # how often to check for new messages (in seconds)
 
     start_time = time.time()

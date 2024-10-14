@@ -8,6 +8,10 @@
 ################################
 from flask import Flask, request
 import xmltodict
+import asyncio
+import websockets
+import json
+from threading import Thread
 import secret, basic, poll, list, presence, msg  # import all other files
 
 app = Flask(__name__)
@@ -202,5 +206,106 @@ def xml_response(data_dict):
     xml_data = xml_data.replace('<PresenceSubList>', '<PresenceSubList xmlns="http://www.wireless-village.org/PA1.1">')
     return xml_data, 200, {'Content-Type': 'application/xml'}
 
+#####################################
+# Here starts Discord WS territory! #
+#####################################
+GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json"
+last = {  # keeps track of last event for heartbeat
+    'token': None,
+    'token2': 69
+}
+
+# WebSocket function to handle real-time DMs for a specific user
+async def listen_for_dms(user_token, user_id):
+    async with websockets.connect(GATEWAY_URL) as websocket:
+        await identify_with_gateway(websocket, user_token)
+
+        while True:
+            response = await websocket.recv()
+            event = json.loads(response)
+            last[user_token] = event.get('s')
+            if event.get('t') == 'MESSAGE_CREATE':  # NewMessage event
+                message = event['d']
+                if message['guild_id'] is None:  # DMs only
+
+                    author_id = message['author']['id']  # discord id
+                    author = message['author']['username']  # only for print()
+                    recipient = None  # found later from user_token
+                    sender = None  # found later from author_id
+                    message_id = 'dcmsgidk'
+                    content = message['content']
+
+                    for user_id, user_data in users.items():  # find the intended recipient through 'd-token'
+                        if user_token in user_data:
+                            recipient = user_id
+                        else:
+                            print("recipient doesnt exist..?")  # something is terribly wrong
+                            break
+
+                    for user_id, user_data in users.items():  # find the actual author through 'discord'
+                        if 'discord' in user_data and user_data['discord'] == author_id:
+                            sender = user_id
+                            print(f"New DM! for {user_id} from {author}: {content}")
+                            poll.send_message_to_queue(recipient, sender, message_id, content)  # send it!
+
+                        else:
+                            # we don't care about this message since the sender is not in the db
+                            print(f"some random message came in from {author}")
+                            break
+
+
+            elif event.get('op') == 10:  # HELLO event with heartbeat information
+                heartbeat_interval = event['d']['heartbeat_interval'] / 1000
+                # Start the heartbeat loop
+                asyncio.create_task(heartbeat(websocket, heartbeat_interval, user_token))
+
+# Identify function to authenticate with the Discord WebSocket Gateway
+async def identify_with_gateway(websocket, token):
+    payload = {
+        "op": 2,
+        "d": {
+            "token": token,
+            "properties": {
+                "$os": "Linux",
+                "$browser": "Mozilla Firefox",
+                "$device": "Discord Client",
+                "$browser_user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.71 Chrome/128.0.6613.36 Electron/32.0.0 Safari/537.36"
+            },
+            "intents": 513  # To listen for DMs (512) and basic events (1)
+        }
+    }
+    await websocket.send(json.dumps(payload))
+
+# Heartbeat function to keep the connection alive
+async def heartbeat(websocket, interval, token):
+    while True:
+        await asyncio.sleep(interval)  # Wait for the heartbeat interval
+        heartbeat_payload = {
+            "op": 1,
+            "d": last[token]  # add the last known event of specific token
+        }
+        await websocket.send(json.dumps(heartbeat_payload))
+
+# Run WebSocket listeners for all users with a valid Discord token
+def run_websockets_for_all_users():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    tasks = []
+
+    for user_id, user_data in users.items():
+        if 'd-token' in user_data:  # Real user with Discord enabled
+            token = user_data['d-token']
+            last[token] = None  # add token to the last dict
+            tasks.append(listen_for_dms(token, user_id))
+
+    if tasks:
+        loop.run_until_complete(asyncio.gather(*tasks))
+
+
 if __name__ == '__main__':
+    # Start WebSocket listener in background thread
+    ws_thread = Thread(target=run_websockets_for_all_users)
+    ws_thread.start()
+
+    # Start Flask itself
     app.run(debug=True)
