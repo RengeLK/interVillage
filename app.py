@@ -210,10 +210,7 @@ def xml_response(data_dict):
 # Here starts Discord WS territory! #
 #####################################
 GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json"
-last = {  # keeps track of last event for heartbeat
-    'token': None,
-    'token2': 69
-}
+last = {}  # keeps track of last event for heartbeat
 
 # WebSocket function to handle real-time DMs for a specific user
 async def listen_for_dms(user_token, user_id):
@@ -230,24 +227,15 @@ async def listen_for_dms(user_token, user_id):
 
                     author_id = message['author']['id']  # discord id
                     author = message['author']['username']  # only for print()
-                    recipient = None  # found later from user_token
-                    sender = None  # found later from author_id
+                    sender = None
                     message_id = 'dcmsgidk'
                     content = message['content']
-
-                    for user_id, user_data in users.items():  # find the intended recipient through 'd-token'
-                        if user_token in user_data:
-                            recipient = user_id
-                        else:
-                            print("recipient doesnt exist..?")  # something is terribly wrong
-                            break
 
                     for user_id, user_data in users.items():  # find the actual author through 'discord'
                         if 'discord' in user_data and user_data['discord'] == author_id:
                             sender = user_id
                             print(f"New DM! for {user_id} from {author}: {content}")
-                            poll.send_message_to_queue(recipient, sender, message_id, content)  # send it!
-
+                            poll.send_message_to_queue(user_id, sender, message_id, content)  # send it!
                         else:
                             # we don't care about this message since the sender is not in the db
                             print(f"some random message came in from {author}")
