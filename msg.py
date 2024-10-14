@@ -6,8 +6,11 @@
 ## msg.py - handle messages   ##
 ## -renge 2024                ##
 ################################
+from lib2to3.fixes.fix_input import context
+
 import app
 import requests
+import subprocess
 
 def handle_send_message(send_message_request, transaction, session):
     recipient = send_message_request['MessageInfo']['Recipient']['User'].get('UserID')
@@ -56,7 +59,20 @@ def handle_send_message(send_message_request, transaction, session):
         requests.post(url, headers=headers, json=json_data)
     elif 'signal' in app.users[recipient]:
         ### Signal sending ###
-        print('not implemented yet')
+        recipient_number = app.users[recipient]['signal']
+        sender_number = app.users[sender]['phone']
+        if recipient_number:
+            command = [
+                "signal-cli", "-a", sender_number, "send", "-m", msgcontent, recipient_number
+            ]
+            try:
+                # Run the command to send the message
+                subprocess.run(command, check=True)
+                print(f"Signal message sent successfully to {recipient_number}!")
+                return True  # Indicate success
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to send Signal message: {e}")
+                return False  # Indicate failure
     else:
         ### Fake user, send to #wv channel ###
         data = {
