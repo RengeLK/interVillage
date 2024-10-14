@@ -157,9 +157,7 @@ def form_status(code: int, desc = None):
         701: 'Contact List Already Exists',
         702: 'Invalid User Properties',
         750: 'Invalid Presence Attribute',
-        751: 'Invalid Presence Value',
-        # Skipping 8xx: Groups
-        900: 'Multiple Errors'
+        751: 'Invalid Presence Value'
     }
 
     if not desc:
@@ -209,10 +207,7 @@ def xml_response(data_dict):
 #####################################
 # Here starts Discord WS territory! #
 #####################################
-# Constants
 GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json"
-last = {}  # Keeps track of the last event sequence for each user
-
 # Function to handle real-time DMs for a specific user
 async def listen_for_dms(user_token, user_id):
     async with websockets.connect(GATEWAY_URL) as websocket:
@@ -226,24 +221,21 @@ async def listen_for_dms(user_token, user_id):
                 if event.get('t') == 'READY':
                     print(f"WebSocket connection for {user_id} is READY")
 
-                if 's' in event:
-                    last[user_token] = event['s']  # Update the last event sequence
-
-                if event.get('t') == 'MESSAGE_CREATE':  # New message event
+                if event.get('t') == 'MESSAGE_CREATE':  # NewMessage event
                     message = event['d']
                     author_id = message['author']['id']  # Discord ID of the sender
                     author = message['author']['username']  # For printing/logging
                     content = message['content']
-                    message_id = 'dcmsgidk'
+                    message_id = 'random6'
 
                     # Search for the actual sender in the `users` dict
-                    for userr_id, user_data in users.items():
+                    for user_id2, user_data in users.items():
                         if 'discord' in user_data and user_data['discord'] == author_id:
-                            sender = userr_id
+                            sender = user_id2
                             print(f"New DM for {user_id} from {author}: {content}")
-                            poll.send_message_to_queue(user_id, sender, message_id, content)  # Send the message to the queue
+                            poll.send_message_to_queue(user_id, sender, message_id, content)  # Send it to the queue!
                         else:
-                            print(f"Unrecognized message from {author} (ID: {author_id})")
+                            print(f"Unrecognized message from {author} for {user_id}")
 
                 elif event.get('op') == 10:  # HELLO event with heartbeat info
                     heartbeat_interval = event['d']['heartbeat_interval'] / 1000
@@ -256,7 +248,6 @@ async def listen_for_dms(user_token, user_id):
                 print(f"WebSocket connection closed for {user_id}")
                 break
 
-
 # Identify function to authenticate with the Discord WebSocket Gateway
 async def identify_with_gateway(websocket, token):
     payload = {
@@ -268,7 +259,7 @@ async def identify_with_gateway(websocket, token):
                 "$browser": "Mozilla Firefox",
                 "$device": "Discord Client"
             },
-            "intents": 4096 | 32768
+            "intents": 4096 | 32768  # DIRECT_MESSAGES + MESSAGE_CONTENT intents
         }
     }
     await websocket.send(json.dumps(payload))
@@ -280,7 +271,7 @@ async def heartbeat(websocket, interval, token):
         await asyncio.sleep(interval)
         heartbeat_payload = {
             "op": 1,
-            "d": last.get(token)  # Use the last known sequence number
+            "d": None  # doesn't seem to matter anyway
         }
         try:
             await websocket.send(json.dumps(heartbeat_payload))
@@ -298,18 +289,14 @@ def start_websockets():
 # Run WebSocket listeners for all users with a valid Discord token
 async def run_websockets_for_all_users():
     tasks = []
-
     for user_id, user_data in users.items():
         if 'd-token' in user_data:  # Only proceed for users with Discord enabled
             token = user_data['d-token']
-            last[token] = None  # Initialize the sequence tracker for each token
             tasks.append(listen_for_dms(token, user_id))
-
     if tasks:
         await asyncio.gather(*tasks)
 
 
-# Start both Flask and WebSocket listener concurrently
 if __name__ == '__main__':
     # Start Flask server in the main thread
     flask_thread = Thread(target=app.run, kwargs={'debug': True, 'use_reloader': False, 'host': '::', 'port': 4040})

@@ -6,7 +6,7 @@
 ## basic.py - handle reqs     ##
 ## -renge 2024                ##
 ################################
-import app
+import app, poll
 import uuid
 
 
@@ -23,17 +23,18 @@ def handle_login(login_request, transaction):
         app.users[user_id]['session_id'] = session_id  # save it
         transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
 
+        # Send ToS as a message from the admin (defined in secret.py)
+        poll.send_message_to_queue(user_id, 'wv:admin', 'intro', app.terms)
+
         resp = {
             'Login-Response': {
                 'UserID': user_id,
                 'Result': app.form_status(200),
                 'SessionID': session_id,
-                # 'TermsOfUse': terms,
                 'KeepAliveTime': time_to_live,
                 'CapabilityRequest': 'T'
             }
         }
-
         response = app.form_wv_message(resp, transaction_id)
         return app.xml_response(response)
 
