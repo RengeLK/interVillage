@@ -6,8 +6,6 @@
 ## msg.py - handle messages   ##
 ## -renge 2024                ##
 ################################
-from lib2to3.fixes.fix_input import context
-
 import app
 import requests
 import subprocess
