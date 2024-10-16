@@ -11,6 +11,7 @@ import xmltodict
 import asyncio
 import websockets
 import json
+import requests
 from threading import Thread
 import secret, basic, poll, list, presence, msg  # import all other files
 
@@ -208,93 +209,100 @@ def xml_response(data_dict):
 # Here starts Discord WS territory! #
 #####################################
 GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json"
-# Function to handle real-time DMs for a specific user
-async def listen_for_dms(user_token, user_id):
-    async with websockets.connect(GATEWAY_URL) as websocket:
-        await identify_with_gateway(websocket, user_token)
-        while True:
-            try:
-                response = await websocket.recv()
-                event = json.loads(response)
+last = {}
+# WebSocket handler for each user
+async def discord_websocket(user_token, user_id):
+    async with websockets.connect(GATEWAY_URL, max_size=2 ** 23) as websocket:  # Increased buffer size
+        print(f"WebSocket connection established for {user_id}")
+        # Step 1: Wait for HELLO (op 10), then authenticate
+        await wait_for_hello(websocket, user_token)
+        # Step 2: Handle incoming events
+        await handle_events(websocket, user_token, user_id)
 
-                # Check if the WebSocket is READY after authentication
-                if event.get('t') == 'READY':
-                    print(f"WebSocket connection for {user_id} is READY")
+# Wait for the HELLO (op 10) event, then send identify
+async def wait_for_hello(websocket, token):
+    while True:
+        response = await websocket.recv()
+        event = json.loads(response)
+        if event.get('op') == 10:  # HELLO event
+            heartbeat_interval = event['d']['heartbeat_interval'] / 1000
+            print(f"Received HELLO, sending identify for token {token}")
+            await identify_with_gateway(websocket, token)
+            asyncio.create_task(heartbeat(websocket, heartbeat_interval, token))
+            break
 
-                if event.get('t') == 'MESSAGE_CREATE':  # NewMessage event
-                    message = event['d']
-                    author_id = message['author']['id']  # Discord ID of the sender
-                    author = message['author']['username']  # For printing/logging
-                    content = message['content']
-                    message_id = 'random6'
+async def handle_events(websocket, token, user_id):
+    while True:
+        response = await websocket.recv()
+        event = json.loads(response)
+        if 's' in event:
+            last[token] = event['s']  # Update last known sequence
 
-                    # Search for the actual sender in the `users` dict
-                    for user_id2, user_data in users.items():
-                        if 'discord' in user_data and user_data['discord'] == author_id:
-                            sender = user_id2
-                            print(f"New DM for {user_id} from {author}: {content}")
-                            poll.send_message_to_queue(user_id, sender, message_id, content)  # Send it to the queue!
-                        else:
-                            print(f"Unrecognized message from {author} for {user_id}")
+        if event.get('t') == 'READY':
+            print(f"{user_id}'s WebSocket is ready!")
 
-                elif event.get('op') == 10:  # HELLO event with heartbeat info
-                    heartbeat_interval = event['d']['heartbeat_interval'] / 1000
-                    asyncio.create_task(heartbeat(websocket, heartbeat_interval, user_token))
+        elif event.get('t') == 'MESSAGE_CREATE':  # NewMessage event
+            message = event['d']
+            author_id = message['author']['id']  # Discord ID of the sender
+            author = message['author']['username']  # For printing/logging
+            content = message['content']
+            message_id = 'random6'
 
-                elif event.get('op') == 11:  # Heartbeat ACK
-                    print(f"Heartbeat ACK received for {user_id}")
+            # Search for the actual sender in the `users` dict
+            # TODO: broken! reports sent messages etc.
+            for user_id2, user_data in users.items():
+                if 'discord' in user_data and user_data['discord'] == author_id:
+                    sender = user_id2
+                    print(f"New DM for {user_id} from {author}: {content}")
+                    poll.send_message_to_queue(user_id, sender, message_id, content)  # Send it to the queue!
+                elif users[user_id]['d-author'] == author:
+                    print('Self-message, ignore..')
+                else:
+                    print(f"Unrecognized message from {author} for {user_id}")
+                    print(message)
 
-            except websockets.ConnectionClosed:
-                print(f"WebSocket connection closed for {user_id}")
-                break
+        elif event.get('t') == 'MESSAGE_ACK':
+            print('Message acknowledged..?')
 
-# Identify function to authenticate with the Discord WebSocket Gateway
+# Send the identify payload to authenticate the WebSocket connection
 async def identify_with_gateway(websocket, token):
-    payload = {
-        "op": 2,
+    identify_payload = {
+        "op": 2,  # Opcode for identify
         "d": {
             "token": token,
             "properties": {
                 "$os": "Linux",
-                "$browser": "Mozilla Firefox",
-                "$device": "Discord Client"
+                "$browser": "Discord Client",
+                "$device": "desktop"
             },
             "intents": 4096 | 32768  # DIRECT_MESSAGES + MESSAGE_CONTENT intents
         }
     }
-    await websocket.send(json.dumps(payload))
-    print(f"Authenticated WebSocket for user token: {token}")
+    await websocket.send(json.dumps(identify_payload))
+    print(f"Sent identify payload for token: {token}")
 
-# Heartbeat function to keep the WebSocket connection alive
+# Send regular heartbeats to keep the WebSocket connection alive
 async def heartbeat(websocket, interval, token):
     while True:
         await asyncio.sleep(interval)
-        heartbeat_payload = {
-            "op": 1,
-            "d": None  # doesn't seem to matter anyway
-        }
+        heartbeat_payload = {"op": 1, "d": last.get(token)}
         try:
             await websocket.send(json.dumps(heartbeat_payload))
-            print(f"Heartbeat sent for user token: {token}")
+            print(f"Heartbeat sent for token: {token}")
         except websockets.ConnectionClosed:
-            print(f"Connection closed for {token} during heartbeat")
+            print("Connection closed during heartbeat")
             break
 
-# Function to start a WebSocket connection in its own event loop in a separate thread
-def start_websockets():
-    loop = asyncio.new_event_loop()  # Create a new event loop for WebSockets
+# Run WebSocket listeners for all users with d-token
+async def run_websockets_for_all_users():
+    tasks = [discord_websocket(user_data['d-token'], user_id) for user_id, user_data in users.items() if 'd-token' in user_data]
+    await asyncio.gather(*tasks)
+
+def run_websockets_thread():
+    loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(run_websockets_for_all_users())
-
-# Run WebSocket listeners for all users with a valid Discord token
-async def run_websockets_for_all_users():
-    tasks = []
-    for user_id, user_data in users.items():
-        if 'd-token' in user_data:  # Only proceed for users with Discord enabled
-            token = user_data['d-token']
-            tasks.append(listen_for_dms(token, user_id))
-    if tasks:
-        await asyncio.gather(*tasks)
+    loop.close()
 
 
 if __name__ == '__main__':
@@ -303,9 +311,9 @@ if __name__ == '__main__':
     flask_thread.start()
 
     # Start WebSocket listeners in a background thread with its own event loop
-    ws_thread = Thread(target=start_websockets)
+    ws_thread = Thread(target=run_websockets_thread)
     ws_thread.start()
 
-    # Wait for both threads (optional)
+    # Wait for both threads
     flask_thread.join()
     ws_thread.join()
