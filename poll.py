@@ -47,7 +47,7 @@ def send_message_to_queue(recipient, sender, message_id, content):
 
 def handle_polling_request(session):
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
-    timeout = 10  # maximum time to keep the connection open (in seconds)
+    timeout = 25  # maximum time to keep the connection open (in seconds)
     poll_interval = 2  # how often to check for new messages (in seconds)
 
     start_time = time.time()

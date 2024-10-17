@@ -11,7 +11,6 @@ import xmltodict
 import asyncio
 import websockets
 import json
-import requests
 from threading import Thread
 import secret, basic, poll, list, presence, msg  # import all other files
 
@@ -241,6 +240,7 @@ async def handle_events(websocket, token, user_id):
         if event.get('t') == 'READY':
             print(f"{user_id}'s WebSocket is ready!")
 
+        # TODO: buggy, always responds thrice with only the third one working as expected
         elif event.get('t') == 'MESSAGE_CREATE':  # NewMessage event
             message = event['d']
             author_id = message['author']['id']  # Discord ID of the sender
@@ -248,18 +248,22 @@ async def handle_events(websocket, token, user_id):
             content = message['content']
             message_id = 'random6'
 
-            # Search for the actual sender in the `users` dict
-            # TODO: broken! reports sent messages etc.
             for user_id2, user_data in users.items():
-                if 'discord' in user_data and user_data['discord'] == author_id:
-                    sender = user_id2
+                # Ensure the message wasn't sent by the WebSocket bearer (self-message check)
+                if users[user_id]['d-author'] == author:
+                    print(f"Self-message from {author}, ignoring...")
+
+                # Check if the event author_id matches the 'discord' attribute (meaning they are the sender)
+                elif 'discord' in user_data and user_data['discord'] == author_id:
+                    sender = user_id2  # This user is the sender
+                    print(f"Message from {author_id} (WV user: {sender})")
                     print(f"New DM for {user_id} from {author}: {content}")
-                    poll.send_message_to_queue(user_id, sender, message_id, content)  # Send it to the queue!
-                elif users[user_id]['d-author'] == author:
-                    print('Self-message, ignore..')
+                    poll.send_message_to_queue(user_id, sender, message_id, content)  # Queue the message
+                    break
                 else:
                     print(f"Unrecognized message from {author} for {user_id}")
-                    print(message)
+                    print(event)
+
 
         elif event.get('t') == 'MESSAGE_ACK':
             print('Message acknowledged..?')
