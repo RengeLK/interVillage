@@ -55,6 +55,7 @@ def handle_send_message(send_message_request, transaction, session):
             "mobile_network_type": "unknown"
         }
         requests.post(url, headers=headers, json=json_data)
+        # TODO: Same as below
     elif 'signal' in app.users[recipient]:
         ### Signal sending ###
         recipient_number = app.users[recipient]['signal']
@@ -67,23 +68,22 @@ def handle_send_message(send_message_request, transaction, session):
                 # Run the command to send the message
                 subprocess.run(command, check=True)
                 print(f"Signal message sent successfully to {recipient_number}!")
-                return True  # Indicate success
             except subprocess.CalledProcessError as e:
                 print(f"Failed to send Signal message: {e}")
-                return False  # Indicate failure
+                # TODO: Implement responding with 500 when something goes wrong
     else:
         ### Fake user, send to #wv channel ###
         data = {
             'content': f'To: {recipient}\nFrom: {sender}\nMessage: {msgcontent}\nFrom InterVillage, an IMPS server by @renge4'
         }
-        webhook = app.wvhook  # The older plaintext one is deleted, no need to try and abuse it :)
+        webhook = app.wvhook
         requests.post(webhook, json=data)
 
     # final response to client, confirming the message
     content = {
         'SendMessage-Response': {
             'Result': app.form_status(200),
-            'MessageID': 'random4'  # not going to bother with that right now
+            'MessageID': 'random4'  # TODO: message IDs everywhere!
         }
     }
     response = app.form_wv_message(content, transaction_id, session_id)
