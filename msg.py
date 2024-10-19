@@ -16,6 +16,7 @@ def handle_send_message(send_message_request, transaction, session):
     msgcontent = send_message_request.get('ContentData')
     transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
+    stat_code = 200
 
     # Only here to check SessionID
     user = None
@@ -32,7 +33,7 @@ def handle_send_message(send_message_request, transaction, session):
     if 'discord' in app.users[recipient]:
         ### Discord sending ###
         recipient_id = app.users[recipient]['discord']
-        token = app.users[sender]['d-token']
+        token = app.users[sender]['token']
         headers = {
             "Authorization": token,
             "Content-Type": "application/json",
@@ -55,22 +56,22 @@ def handle_send_message(send_message_request, transaction, session):
             "mobile_network_type": "unknown"
         }
         requests.post(url, headers=headers, json=json_data)
-        # TODO: Same as below
+        stat_code = 500
     elif 'signal' in app.users[recipient]:
         ### Signal sending ###
         recipient_number = app.users[recipient]['signal']
         sender_number = app.users[sender]['phone']
         if recipient_number:
             command = [
-                "signal-cli", "-a", sender_number, "send", "-m", msgcontent, recipient_number
+                "./signal", "-a", sender_number, "send", "-m", msgcontent, recipient_number
             ]
             try:
                 # Run the command to send the message
                 subprocess.run(command, check=True)
-                print(f"Signal message sent successfully to {recipient_number}!")
+                print(f"Signal message sent successfully to {recipient_number}!")  # DEBUG
             except subprocess.CalledProcessError as e:
                 print(f"Failed to send Signal message: {e}")
-                # TODO: Implement responding with 500 when something goes wrong
+                stat_code = 500
     else:
         ### Fake user, send to #wv channel ###
         data = {
@@ -82,7 +83,7 @@ def handle_send_message(send_message_request, transaction, session):
     # final response to client, confirming the message
     content = {
         'SendMessage-Response': {
-            'Result': app.form_status(200),
+            'Result': app.form_status(stat_code),
             'MessageID': 'random4'  # TODO: message IDs everywhere!
         }
     }

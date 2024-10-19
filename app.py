@@ -11,6 +11,8 @@ import xmltodict
 import asyncio
 import websockets
 import json
+import time
+import subprocess
 from threading import Thread
 import secret, basic, poll, list, presence, msg  # import all other files
 
@@ -225,7 +227,7 @@ async def wait_for_hello(websocket, token):
         event = json.loads(response)
         if event.get('op') == 10:  # HELLO event
             heartbeat_interval = event['d']['heartbeat_interval'] / 1000
-            print(f"Received HELLO, sending identify for token {token}")
+            #print(f"Received HELLO, sending identify for token {token}")
             await identify_with_gateway(websocket, token)
             asyncio.create_task(heartbeat(websocket, heartbeat_interval, token))
             break
@@ -250,7 +252,7 @@ async def handle_events(websocket, token, user_id):
 
             for user_id2, user_data in users.items():
                 # Ensure the message wasn't sent by the WebSocket bearer (self-message check)
-                if users[user_id]['d-author'] == author:
+                if users[user_id]['username'] == author:
                     print(f"Self-message from {author}, ignoring...")
 
                 # Check if the event author_id matches the 'discord' attribute (meaning they are the sender)
@@ -283,7 +285,7 @@ async def identify_with_gateway(websocket, token):
         }
     }
     await websocket.send(json.dumps(identify_payload))
-    print(f"Sent identify payload for token: {token}")
+    #print(f"Sent identify payload for token: {token}")
 
 # Send regular heartbeats to keep the WebSocket connection alive
 async def heartbeat(websocket, interval, token):
@@ -292,14 +294,14 @@ async def heartbeat(websocket, interval, token):
         heartbeat_payload = {"op": 1, "d": last.get(token)}
         try:
             await websocket.send(json.dumps(heartbeat_payload))
-            print(f"Heartbeat sent for token: {token}")
+            #print(f"Heartbeat sent for token: {token}")
         except websockets.ConnectionClosed:
             print("Connection closed during heartbeat")
             break
 
-# Run WebSocket listeners for all users with d-token
+# Run WebSocket listeners for all users with token
 async def run_websockets_for_all_users():
-    tasks = [discord_websocket(user_data['d-token'], user_id) for user_id, user_data in users.items() if 'd-token' in user_data]
+    tasks = [discord_websocket(user_data['token'], user_id) for user_id, user_data in users.items() if 'token' in user_data]
     await asyncio.gather(*tasks)
 
 def run_websockets_thread():
@@ -307,6 +309,72 @@ def run_websockets_thread():
     asyncio.set_event_loop(loop)
     loop.run_until_complete(run_websockets_for_all_users())
     loop.close()
+
+#############################
+## Signal stuff, simpler.. ##
+#############################
+def receive_signal_messages(user_data, user_id):
+    phone = user_data['phone']
+
+    subprocess.run(['./signal', '-o', 'json', '-a', phone, 'receive', '--ignore-attachments', '--ignore-stories'])  # initial check, purges messages before server start
+    time.sleep(10) # wait a while
+
+    while True:
+        try:
+            result = subprocess.run(
+                ['./signal', '-o', 'json', '-a', phone, 'receive', '--ignore-attachments', '--ignore-stories'],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0:
+                print(f"Error running signal-cli for {user_id}: {result.stderr}")
+                continue
+
+            messages = result.stdout.strip().splitlines()  # Each line is a separate JSON object
+            for message_json in messages:
+                try:
+                    message_data = json.loads(message_json)
+                    envelope = message_data.get('envelope', {})
+                    sent_message = envelope.get('syncMessage', {}).get('sentMessage', None)
+
+                    # Random empty JSONs (probably confirmation?)
+                    if not sent_message:
+                        print(f"Empty or invalid Signal message from {user_id}, ignoring...")
+                        return
+
+                    # Extract necessary fields
+                    source = envelope.get('sourceNumber')
+                    dest = sent_message.get('destinationNumber')
+                    content = sent_message.get('message')
+                    message_id = "random7"
+
+                    # Look up the sender in the users dict
+                    sender_id = None
+                    for user_id, user_data in users.items():
+                        if 'signal' in user_data and user_data['signal'] == source:
+                            sender_id = user_id
+                            break
+
+                    if sender_id:
+                        print(f"Received Signal message from {sender_id}: {content}")
+                        poll.send_message_to_queue(user_id, sender_id, message_id, content)
+                    else:
+                        print(f"Unrecognized Signal sender, ignoring: {source} to {dest}")
+
+                except json.JSONDecodeError:
+                    print(f"Failed to parse message: {message_json}")
+
+        except Exception as e:
+            print(f"Error receiving Signal messages for {user_id}: {e}")
+
+        time.sleep(5)
+
+# Thread function for Signal messages
+def run_signal_receivers():
+    for user_id, user_data in users.items():
+        if 'phone' in user_data:
+            print(f"Starting Signal receiver for {user_id}'s {user_data['phone']}")
+            Thread(target=receive_signal_messages, args=(user_data,user_id), daemon=True).start()
 
 
 if __name__ == '__main__':
@@ -318,6 +386,10 @@ if __name__ == '__main__':
     ws_thread = Thread(target=run_websockets_thread)
     ws_thread.start()
 
+    signal_thread = Thread(target=run_signal_receivers)
+    signal_thread.start()
+
     # Wait for both threads
     flask_thread.join()
     ws_thread.join()
+    signal_thread.join()
