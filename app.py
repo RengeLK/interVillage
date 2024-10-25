@@ -264,11 +264,11 @@ async def handle_events(websocket, token, user_id):
                     break
                 else:
                     print(f"Unrecognized message from {author} for {user_id}")
-                    print(event)
+                    #print(event)
 
 
         elif event.get('t') == 'MESSAGE_ACK':
-            print('Message acknowledged..?')
+            print('Discord message acknowledged')
 
 # Send the identify payload to authenticate the WebSocket connection
 async def identify_with_gateway(websocket, token):
@@ -310,19 +310,20 @@ def run_websockets_thread():
     loop.run_until_complete(run_websockets_for_all_users())
     loop.close()
 
-#############################
-## Signal stuff, simpler.. ##
-#############################
+###########################
+# Signal stuff, simpler.. #
+###########################
 def receive_signal_messages(user_data, user_id):
     phone = user_data['phone']
 
     subprocess.run(['./signal', '-o', 'json', '-a', phone, 'receive', '--ignore-attachments', '--ignore-stories'])  # initial check, purges messages before server start
     time.sleep(10) # wait a while
+    print(f"{user_id}'s Signal receiver is ready!")
 
     while True:
         try:
             result = subprocess.run(
-                ['./signal', '-o', 'json', '-a', phone, 'receive', '--ignore-attachments', '--ignore-stories'],
+                ['./signal', '-o', 'json', '-a', phone, 'receive', '--ignore-attachments', '--ignore-stories', "-t", '2', '--max-messages', '1'],
                 capture_output=True,
                 text=True
             )
@@ -335,31 +336,35 @@ def receive_signal_messages(user_data, user_id):
                 try:
                     message_data = json.loads(message_json)
                     envelope = message_data.get('envelope', {})
-                    sent_message = envelope.get('syncMessage', {}).get('sentMessage', None)
+                    sent_message = envelope.get('dataMessage', {})
+
+                    # syncMessage is useless in our case and simply spams the console
+                    if 'syncMessage' in envelope:
+                        break
 
                     # Random empty JSONs (probably confirmation?)
                     if not sent_message:
                         print(f"Empty or invalid Signal message from {user_id}, ignoring...")
-                        return
+                        break
 
                     # Extract necessary fields
                     source = envelope.get('sourceNumber')
-                    dest = sent_message.get('destinationNumber')
+                    dest = message_data.get('account')
                     content = sent_message.get('message')
                     message_id = "random7"
 
                     # Look up the sender in the users dict
                     sender_id = None
-                    for user_id, user_data in users.items():
+                    for user2_id, user_data in users.items():
                         if 'signal' in user_data and user_data['signal'] == source:
-                            sender_id = user_id
+                            sender_id = user2_id
                             break
 
                     if sender_id:
-                        print(f"Received Signal message from {sender_id}: {content}")
+                        print(f"Received Signal message from {sender_id} to {user_id}")
                         poll.send_message_to_queue(user_id, sender_id, message_id, content)
                     else:
-                        print(f"Unrecognized Signal sender, ignoring: {source} to {dest}")
+                        print(f"Unrecognized Signal sender from {source} to {dest}, ignoring..")
 
                 except json.JSONDecodeError:
                     print(f"Failed to parse message: {message_json}")
@@ -367,13 +372,14 @@ def receive_signal_messages(user_data, user_id):
         except Exception as e:
             print(f"Error receiving Signal messages for {user_id}: {e}")
 
-        time.sleep(5)
+        time.sleep(2)
 
 # Thread function for Signal messages
 def run_signal_receivers():
+    time.sleep(1)  # neat console
     for user_id, user_data in users.items():
         if 'phone' in user_data:
-            print(f"Starting Signal receiver for {user_id}'s {user_data['phone']}")
+            print(f"Starting Signal receiver for {user_id}")
             Thread(target=receive_signal_messages, args=(user_data,user_id), daemon=True).start()
 
 
@@ -386,6 +392,7 @@ if __name__ == '__main__':
     ws_thread = Thread(target=run_websockets_thread)
     ws_thread.start()
 
+    # Start Signal polling loop
     signal_thread = Thread(target=run_signal_receivers)
     signal_thread.start()
 

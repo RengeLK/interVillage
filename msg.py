@@ -33,45 +33,55 @@ def handle_send_message(send_message_request, transaction, session):
     if 'discord' in app.users[recipient]:
         ### Discord sending ###
         recipient_id = app.users[recipient]['discord']
-        token = app.users[sender]['token']
-        headers = {
-            "Authorization": token,
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.71 Chrome/128.0.6613.36 Electron/32.0.0 Safari/537.36"
-        }
+        try:
+            token = app.users[sender]['token']  # this is what the try statement is for (is sender capable of dc?)
+            headers = {
+                "Authorization": token,
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.71 Chrome/128.0.6613.36 Electron/32.0.0 Safari/537.36"
+            }
 
-        # create/fetch dm channel id
-        url = "https://discord.com/api/v9/users/@me/channels"
-        json_data = {
-            "recipient_id": recipient_id
-        }
-        response = requests.post(url, headers=headers, json=json_data)
-        channel_id = response.json().get('id')
+            # create/fetch dm channel id
+            url = "https://discord.com/api/v9/users/@me/channels"
+            json_data = {
+                "recipient_id": recipient_id
+            }
+            response = requests.post(url, headers=headers, json=json_data)
+            channel_id = response.json().get('id')
 
-        # actually send message to found channel id
-        url = f"https://discord.com/api/v9/channels/{channel_id}/messages"
-        json_data = {
-            "content": msgcontent,
-            "flags": 0,
-            "mobile_network_type": "unknown"
-        }
-        requests.post(url, headers=headers, json=json_data)
-        stat_code = 500
+            # actually send message to found channel id
+            url = f"https://discord.com/api/v9/channels/{channel_id}/messages"
+            json_data = {
+                "content": msgcontent,
+                "flags": 0,
+                "mobile_network_type": "unknown"
+            }
+            reimu = requests.post(url, headers=headers, json=json_data)
+            # if something went wrong discord-side, change stat code
+            if reimu.status_code != 200:
+                stat_code = 500
+        except KeyError as e:  # something wasn't found in db
+            print(f'Discord sending error for {sender}: {e}')
+            stat_code = 500
     elif 'signal' in app.users[recipient]:
         ### Signal sending ###
         recipient_number = app.users[recipient]['signal']
-        sender_number = app.users[sender]['phone']
-        if recipient_number:
-            command = [
-                "./signal", "-a", sender_number, "send", "-m", msgcontent, recipient_number
-            ]
-            try:
-                # Run the command to send the message
-                subprocess.run(command, check=True)
-                print(f"Signal message sent successfully to {recipient_number}!")  # DEBUG
-            except subprocess.CalledProcessError as e:
-                print(f"Failed to send Signal message: {e}")
-                stat_code = 500
+        try:
+            sender_number = app.users[sender]['phone']  # is sender capable of signal?
+            if recipient_number:
+                command = [
+                    "./signal", "-a", sender_number, "send", "-m", msgcontent, recipient_number
+                ]
+                try:
+                    # Run the command to send the message
+                    subprocess.run(command, check=True)
+                    print(f"Signal message sent successfully to {recipient_number}!")
+                except subprocess.CalledProcessError as e:
+                    print(f"Failed to send Signal message: {e}")
+                    stat_code = 500
+        except KeyError:  # sender isn't signal-capable
+            print(f'{sender} tried sending a Signal message to {recipient} without being capable!')
+            stat_code = 500
     else:
         ### Fake user, send to #wv channel ###
         data = {

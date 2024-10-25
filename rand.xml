@@ -481,3 +481,72 @@
 		</Transaction>
 	</Session>
 </WV-CSP-Message>
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<WV-CSP-Message
+	xmlns="http://www.wireless-village.org/CSP1.1">
+	<Session>
+		<SessionDescriptor>
+			<SessionType>Inband</SessionType>
+			<SessionID>d751b178-807d-4541-a7f4-b3bec71eadaf</SessionID>
+		</SessionDescriptor>
+		<Transaction>
+			<TransactionDescriptor>
+				<TransactionMode>Request</TransactionMode>
+				<TransactionID>78</TransactionID>
+			</TransactionDescriptor>
+			<TransactionContent
+				xmlns="http://www.wireless-village.org/TRC1.1">
+				<BlockEntity-Request>
+					<BlockList>
+						<InUse>T</InUse>
+						<AddList>
+							<UserID>wv:reimu</UserID>
+						</AddList>
+						<RemoveList/>
+					</BlockList>
+					<GrantList>
+						<InUse>F</InUse>
+						<AddList/>
+						<RemoveList/>
+					</GrantList>
+				</BlockEntity-Request>
+			</TransactionContent>
+		</Transaction>
+	</Session>
+</WV-CSP-Message>
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<WV-CSP-Message
+	xmlns="http://www.wireless-village.org/CSP1.1">
+	<Session>
+		<SessionDescriptor>
+			<SessionType>Inband</SessionType>
+			<SessionID>d751b178-807d-4541-a7f4-b3bec71eadaf</SessionID>
+		</SessionDescriptor>
+		<Transaction>
+			<TransactionDescriptor>
+				<TransactionMode>Request</TransactionMode>
+				<TransactionID>9</TransactionID>
+			</TransactionDescriptor>
+			<TransactionContent
+				xmlns="http://www.wireless-village.org/TRC1.1">
+				<SubscribePresence-Request>
+					<ContactList>wv:renge/main</ContactList>
+					<PresenceSubList
+						xmlns="http://www.wireless-village.org/PA1.1">
+						<OnlineStatus/>
+						<UserAvailability/>
+						<StatusText/>
+					</PresenceSubList>
+				</SubscribePresence-Request>
+			</TransactionContent>
+		</Transaction>
+	</Session>
+</WV-CSP-Message>

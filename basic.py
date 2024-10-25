@@ -15,13 +15,13 @@ def handle_login(login_request, transaction):
     #client_id = login_request.get('ClientID', {}).get('URL')
     password = login_request.get('Password')
     time_to_live = login_request.get('TimeToLive')
+    transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
 
     # Check if the user exists and the password is correct
     if user_id in app.users and app.users[user_id]['password'] == password and password != 'null':
         # Generate a unique session ID for the user
         session_id = str(uuid.uuid4())
         app.users[user_id]['session_id'] = session_id  # save it
-        transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
 
         # Send ToS as a message from the admin (defined in secret.py)
         poll.send_message_to_queue(user_id, 'wv:admin', 'intro', app.terms)
@@ -45,7 +45,7 @@ def handle_login(login_request, transaction):
             'Result': app.form_status(409)  # Invalid Password
         }
     }
-    response = app.form_wv_message(resp, transaction)
+    response = app.form_wv_message(resp, transaction_id)
     return app.xml_response(response)
 
 
