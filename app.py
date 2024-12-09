@@ -6,6 +6,8 @@
 ## app.py - main file         ##
 ## -renge 2024                ##
 ################################
+import uuid
+
 from flask import Flask, request
 import xmltodict
 import asyncio
@@ -22,11 +24,12 @@ app = Flask(__name__)
 users = secret.users
 terms = secret.terms
 wvhook = secret.wvhook
+www_index = open('index.html', 'r')
 
 # Regular browser visitors
 @app.route('/', methods=['GET'])
 def root():
-    return 'you need an imps client to connect to intervillage\n-renge 2024'
+    return www_index
 
 # Manually add messages to the queue (pre-backend implement)
 '''@app.route('/add', methods=['POST'])
@@ -86,6 +89,12 @@ def handle_wv_csp_message(message_request):
     elif 'ListManage-Request' in transaction_content:
         return list.handle_list_manage_request(transaction_content['ListManage-Request'], transaction, session)
 
+    # Handle BlockEntity-Request
+    elif 'BlockEntity-Request' in transaction_content:
+        return list.handle_block_request(transaction_content['BlockEntity-Request'], transaction, session)
+
+    #TODO: GetBlockedList-Request
+
     # Handle UpdatePresence-Request
     elif 'UpdatePresence-Request' in transaction_content:
         return presence.handle_update_presence_request(transaction_content['UpdatePresence-Request'], transaction, session)
@@ -93,6 +102,8 @@ def handle_wv_csp_message(message_request):
     # Handle GetPresence-Request
     elif 'GetPresence-Request' in transaction_content:
         return presence.handle_get_presence_request(transaction_content['GetPresence-Request'], transaction, session)
+
+    # TODO: (Un)SubscribePresence-Request
 
     # Handle SendMessage-Request
     elif 'SendMessage-Request' in transaction_content:
@@ -197,6 +208,10 @@ def form_wv_message(content: dict, transaction_id, session_id = None):
     }
     return response
 
+def gen_msg_id():
+    # it is for the repetitive that the simple is IDK
+    return 'rm-' + str(uuid.uuid4())
+
 # Convert dict back to XML
 def xml_response(data_dict):
     xml_data = xmltodict.unparse(data_dict, pretty=True, full_document=True)
@@ -248,7 +263,7 @@ async def handle_events(websocket, token, user_id):
             author_id = message['author']['id']  # Discord ID of the sender
             author = message['author']['username']  # For printing/logging
             content = message['content']
-            message_id = 'random6'
+            message_id = gen_msg_id()
 
             for user_id2, user_data in users.items():
                 # Ensure the message wasn't sent by the WebSocket bearer (self-message check)
@@ -351,7 +366,7 @@ def receive_signal_messages(user_data, user_id):
                     source = envelope.get('sourceNumber')
                     dest = message_data.get('account')
                     content = sent_message.get('message')
-                    message_id = "random7"
+                    message_id = gen_msg_id()
 
                     # Look up the sender in the users dict
                     sender_id = None

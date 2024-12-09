@@ -29,6 +29,12 @@ def handle_send_message(send_message_request, transaction, session):
         resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
         return app.xml_response(resp)
 
+    if recipient in user['block_list']:
+        # Attempting to send a message to a blocked user, no way
+        print(f"{sender} tried sending a message to blocked {recipient}, trashing message...")
+        resp = app.form_wv_message({'Status': app.form_status(532)}, transaction_id, session_id)
+        return app.xml_response(resp)
+
 
     if 'discord' in app.users[recipient]:
         ### Discord sending ###
@@ -94,7 +100,7 @@ def handle_send_message(send_message_request, transaction, session):
     content = {
         'SendMessage-Response': {
             'Result': app.form_status(stat_code),
-            'MessageID': 'random4'  # TODO: message IDs everywhere!
+            'MessageID': app.gen_msg_id()
         }
     }
     response = app.form_wv_message(content, transaction_id, session_id)

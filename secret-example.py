@@ -18,6 +18,8 @@ users = {
         'contact_lists': {
             'wv:johndoe/main'
         },
+        'block_list': {},  # block and grant list functionality, only required for real users
+        'grant_list': {},
         'default_contact_list': 'wv:johndoe/main',
         'presence': {
             'OnlineStatus': 'F',  # is the user logged-in?

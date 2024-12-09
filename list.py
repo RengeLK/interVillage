@@ -79,3 +79,63 @@ def handle_list_manage_request(list_manage_request, transaction, session):
     # Invalid session ID
     resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
     return app.xml_response(resp)
+
+def handle_block_request(block_request, transaction, session):
+    block_list = block_request.get('BlockList')
+    grant_list = block_request.get('GrantList')
+    transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
+    session_id = session.get('SessionDescriptor', {}).get('SessionID')
+
+    # Find user by session_id
+    user = None
+    for u in app.users.values():
+        if u['session_id'] == session_id:
+            user = u
+            break
+
+    if user is None:
+        # Invalid session ID
+        resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
+        return app.xml_response(resp)
+
+    # BlockList management
+    isUsed = block_list['InUse']
+    addList = block_list['AddList']
+    removeList = block_list['RemoveList']
+
+    # Is block list used? If so, do stuff with it
+    if isUsed == 'T':
+        # Add users to the block list
+        if addList:
+            for blud, userID in addList.items():
+                if userID in user['block_list']:
+                    # User ID is already on the list
+                    resp = app.form_wv_message({'Status': app.form_status(531)}, transaction_id, session_id)
+                    return app.xml_response(resp)
+                else:
+                    user['block_list'][userID] = None
+
+        # Remove users from the block list
+        if removeList:
+            for blud, userID in removeList.items():
+                if userID in user['block_list']:
+                    user['block_list'].pop(userID)
+                else:
+                    # User ID isn't in the block list, respond with error
+                    resp = app.form_wv_message({'Status': app.form_status(531)}, transaction_id, session_id)
+                    return app.xml_response(resp)
+
+
+    # GrantList management (inverted block list logic)
+    # TODO: actually do something with the grant list
+    isUsed = grant_list['InUse']
+    addList = grant_list['AddList']
+    removeList = grant_list['RemoveList']
+
+    # Is grant list used? If so, do stuff with it
+    if isUsed == 'T':
+        print(f"{user} tried setting a grant list, NOT IMPLEMENTED!!!!!!!!!!")
+
+
+    response = app.form_wv_message({'Status': app.form_status(200)}, transaction_id, session_id)
+    return app.xml_response(response)

@@ -9,6 +9,9 @@
 import app
 import time
 
+import secret
+
+
 def handle_keep_alive_request(keep_alive_request, transaction, session):
     time_to_live = keep_alive_request.get('TimeToLive')
     transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
@@ -60,6 +63,10 @@ def handle_polling_request(session):
             message = new_message['content']
             length = len(message)
             message_id = new_message['message_id']
+
+            if sender in secret.users[recipient]['block_list']:
+                print(f"{sender} is in {recipient}'s block list, trashing message...")
+                continue  # do not forward messages from blocked users
 
             resp = {
                 'NewMessage': {
