@@ -401,7 +401,7 @@ def run_signal_receivers():
 
 if __name__ == '__main__':
     # Start Flask server in the main thread
-    flask_thread = Thread(target=app.run, kwargs={'debug': True, 'use_reloader': False, 'host': '::', 'port': 4040})
+    flask_thread = Thread(target=app.run, kwargs={'debug': True, 'use_reloader': False, 'host': '::', 'port': port})
     flask_thread.start()
 
     # Start WebSocket listeners in a background thread with its own event loop
