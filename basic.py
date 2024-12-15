@@ -9,7 +9,6 @@
 import app, poll
 import uuid
 
-
 def handle_login(login_request, transaction):
     user_id = login_request.get('UserID')
     #client_id = login_request.get('ClientID', {}).get('URL')
@@ -91,6 +90,7 @@ def handle_client_capability(capability_request, transaction, session):
 
     if user:
         # Respond with capabilities according to the specs
+        # TODO: grab info from the response, no hard-code
         resp = {
             'ClientCapability-Response': {
                 'ClientID': {
@@ -102,8 +102,8 @@ def handle_client_capability(capability_request, transaction, session):
                     'AcceptedContentType': [
                         #'text/x-vCard; charset=utf-8',
                         #'text/x-vCalendar; charset=utf-8',
-                        'text/plain; charset=utf-8',
-                        'application/x-sms'
+                        #'application/x-sms',
+                        'text/plain; charset=utf-8'
                     ],
                     'AcceptedTransferEncoding': 'BASE64',
                     'AcceptedContentLength': 32767,
@@ -114,9 +114,10 @@ def handle_client_capability(capability_request, transaction, session):
                             'WAPSMS',
                             'STCP'
                     ],
-                    'TCPAddress': 'iv.renge4.net',
-                    'TCPPort': 4040,
-                    'ServerPollMin': 10
+                    'TCPAddress': app.address,
+                    'TCPPort': app.port,
+                    'ServerPollMin': 10,
+                    'DefaultLanguage': 'eng'
                 }
             }
         }

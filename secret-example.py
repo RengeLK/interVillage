@@ -5,6 +5,8 @@
 
 terms = "Your ToS text here"  # gets sent to each client upon login. You can change this to read from a file
 wvhook = "https://discord.com/api/webhooks/blablabla"  # All messages to fake users are sent here
+address = 'basement.of.moriya.moe'  # address of your server
+port = 69  # port of your server
 
 # Simulating a basic user database
 users = {

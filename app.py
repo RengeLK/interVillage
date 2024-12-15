@@ -6,13 +6,12 @@
 ## app.py - main file         ##
 ## -renge 2024                ##
 ################################
-import uuid
-
 from flask import Flask, request
 import xmltodict
 import asyncio
 import websockets
 import json
+import uuid
 import time
 import subprocess
 from threading import Thread
@@ -24,6 +23,8 @@ app = Flask(__name__)
 users = secret.users
 terms = secret.terms
 wvhook = secret.wvhook
+address = secret.address
+port = secret.port
 www_index = open('index.html', 'r')
 
 # Regular browser visitors
