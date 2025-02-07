@@ -71,3 +71,8 @@ users = {
         }
     }
 }
+
+ads = [  # Weird feature that sends a random message from this list to every real account that is currently online every 30 mins or so
+    "You should check out Startpage, so that we can ditch Google once and for all!",
+    "Arch Linux; NOW!"
+]

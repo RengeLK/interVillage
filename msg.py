@@ -7,8 +7,10 @@
 ## -renge 2024                ##
 ################################
 import app
+import poll
 import requests
 import subprocess
+import random
 
 def handle_send_message(send_message_request, transaction, session):
     recipient = send_message_request['MessageInfo']['Recipient']['User'].get('UserID')
@@ -105,3 +107,10 @@ def handle_send_message(send_message_request, transaction, session):
     }
     response = app.form_wv_message(content, transaction_id, session_id)
     return app.xml_response(response)
+
+def send_advertisements():
+    for i, u in app.users.items():
+        if u['session_id'] is not None:
+            msgid = 'ad' + str(random.randrange(0, 1000))
+            cont = random.choice(app.ads)
+            poll.send_message_to_queue(i, 'wv:admin', msgid, cont)

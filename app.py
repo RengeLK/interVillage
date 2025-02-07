@@ -14,6 +14,7 @@ import json
 import uuid
 import time
 import subprocess
+import schedule
 from threading import Thread
 import secret, basic, poll, list, presence, msg  # import all other files
 
@@ -21,6 +22,7 @@ app = Flask(__name__)
 
 # Import secrets here so I don't have to rewrite everything
 users = secret.users
+ads = secret.ads
 terms = secret.terms
 wvhook = secret.wvhook
 address = secret.address
@@ -398,6 +400,16 @@ def run_signal_receivers():
             print(f"Starting Signal receiver for {user_id}")
             Thread(target=receive_signal_messages, args=(user_data,user_id), daemon=True).start()
 
+# Scheduler thread function
+def run_scheduler():
+    # Schedule your function
+    schedule.every(30).minutes.do(msg.send_advertisements)
+    print("Schedule was set!")
+
+    while True:
+        schedule.run_pending()  # Run any pending jobs
+        time.sleep(1)  # Sleep to avoid high CPU usage
+
 
 if __name__ == '__main__':
     # Start Flask server in the main thread
@@ -412,7 +424,12 @@ if __name__ == '__main__':
     signal_thread = Thread(target=run_signal_receivers)
     signal_thread.start()
 
+    # Start the scheduler in a separate thread
+    scheduler_thread = Thread(target=run_scheduler)
+    scheduler_thread.start()
+
     # Wait for both threads
     flask_thread.join()
     ws_thread.join()
     signal_thread.join()
+    scheduler_thread.join()
