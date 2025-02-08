@@ -4,7 +4,7 @@
 ## modern IM platforms        ##
 ##                            ##
 ## app.py - main file         ##
-## -renge 2024                ##
+## -renge 2024-2025           ##
 ################################
 from flask import Flask, request
 import xmltodict
@@ -16,6 +16,9 @@ import time
 import subprocess
 import schedule
 from threading import Thread
+
+from websockets import WebSocketException
+
 import secret, basic, poll, list, presence, msg  # import all other files
 
 app = Flask(__name__)
@@ -252,8 +255,14 @@ async def wait_for_hello(websocket, token):
 
 async def handle_events(websocket, token, user_id):
     while True:
-        response = await websocket.recv()
-        event = json.loads(response)
+        try:
+            response = await websocket.recv()
+            event = json.loads(response)
+        except WebSocketException:
+            print(f"Something went wrong when checking WS for {user_id}, attempting to reconnect..")
+            await discord_websocket(token, user_id)
+            break
+
         if 's' in event:
             last[token] = event['s']  # Update last known sequence
 

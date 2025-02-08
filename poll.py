@@ -4,7 +4,7 @@
 ## modern IM platforms        ##
 ##                            ##
 ## poll.py - handle polling   ##
-## -renge 2024                ##
+## -renge 2024-2025           ##
 ################################
 import app
 import time

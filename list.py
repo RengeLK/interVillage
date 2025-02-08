@@ -4,7 +4,7 @@
 ## modern IM platforms        ##
 ##                            ##
 ## list.py - handle contacts  ##
-## -renge 2024                ##
+## -renge 2024-2025           ##
 ################################
 import app
 
