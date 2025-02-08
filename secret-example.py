@@ -1,7 +1,6 @@
 # Rename this file to secret.py and change the values
 # User DB cannot be changed by clients at the moment, so they need to be added manually here
 # Some fields may not be necessary for the server to function correctly
-# Also, the Discord token is only used to maintain a WebSocket connection and send messages, no sketchy things
 
 terms = "Your ToS text here"  # gets sent to each client upon login. You can change this to read from a file
 wvhook = "https://discord.com/api/webhooks/blablabla"  # All messages to fake users are sent here
@@ -13,7 +12,7 @@ users = {
     'wv:johndoe': {  # Real user to be used by a client
         'password': 'changeMe!',  # plaintext, could be changed to something like MD5
         'username': 'reimulover4',  # Discord username (only fill out when you want Discord functionality!)
-        'token': 'jkrgniufeuighuitwbgioebgtu',  # Discord token (only fill out when you want Discord functionality!)
+        'token': 'reallylongandinterestingstring',  # Discord token (only fill out when you want Discord functionality!)
         'phone': '+420123456789',  # Signal phone number (only fill out when you want Signal functionality!)
         'session_id': None,
         'client_ids': [],
@@ -72,7 +71,7 @@ users = {
     }
 }
 
-ads = [  # Weird feature that sends a random message from this list to every real account that is currently online every 30 mins or so
+ads = [  # List of random messages that get sent to every real online account every 30 minutes or so
     "You should check out Startpage, so that we can ditch Google once and for all!",
     "Arch Linux; NOW!"
 ]

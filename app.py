@@ -248,7 +248,6 @@ async def wait_for_hello(websocket, token):
         event = json.loads(response)
         if event.get('op') == 10:  # HELLO event
             heartbeat_interval = event['d']['heartbeat_interval'] / 1000
-            #print(f"Received HELLO, sending identify for token {token}")
             await identify_with_gateway(websocket, token)
             asyncio.create_task(heartbeat(websocket, heartbeat_interval, token))
             break
@@ -278,24 +277,15 @@ async def handle_events(websocket, token, user_id):
             message_id = gen_msg_id()
 
             for user_id2, user_data in users.items():
-                # Ensure the message wasn't sent by the WebSocket bearer (self-message check)
-                if users[user_id]['username'] == author:
-                    print(f"Self-message from {author}, ignoring...")
 
                 # Check if the event author_id matches the 'discord' attribute (meaning they are the sender)
-                elif 'discord' in user_data and user_data['discord'] == author_id:
+                if 'discord' in user_data and user_data['discord'] == author_id:
                     sender = user_id2  # This user is the sender
-                    print(f"Message from {author_id} (WV user: {sender})")
-                    print(f"New DM for {user_id} from {author}: {content}")
+                    print(f"New DM for {user_id} from {author}!")
                     poll.send_message_to_queue(user_id, sender, message_id, content)  # Queue the message
                     break
                 else:
                     print(f"Unrecognized message from {author} for {user_id}")
-                    #print(event)
-
-
-        elif event.get('t') == 'MESSAGE_ACK':
-            print('Discord message acknowledged')
 
 # Send the identify payload to authenticate the WebSocket connection
 async def identify_with_gateway(websocket, token):
@@ -312,7 +302,6 @@ async def identify_with_gateway(websocket, token):
         }
     }
     await websocket.send(json.dumps(identify_payload))
-    #print(f"Sent identify payload for token: {token}")
 
 # Send regular heartbeats to keep the WebSocket connection alive
 async def heartbeat(websocket, interval, token):
@@ -321,9 +310,8 @@ async def heartbeat(websocket, interval, token):
         heartbeat_payload = {"op": 1, "d": last.get(token)}
         try:
             await websocket.send(json.dumps(heartbeat_payload))
-            #print(f"Heartbeat sent for token: {token}")
         except websockets.ConnectionClosed:
-            print("Connection closed during heartbeat")
+            print("Connection closed during heartbeat!")
             break
 
 # Run WebSocket listeners for all users with token
@@ -371,7 +359,6 @@ def receive_signal_messages(user_data, user_id):
 
                     # Random empty JSONs (probably confirmation?)
                     if not sent_message:
-                        print(f"Empty or invalid Signal message from {user_id}, ignoring...")
                         break
 
                     # Extract necessary fields
