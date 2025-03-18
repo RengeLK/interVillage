@@ -19,13 +19,16 @@ This assumes you have at least Python 3.11 installed.
 First, create a venv and install all packages:
 ```
 python -m venv venv
+$ source venv/bin/activate
+C:> .\venv\Scripts\activate.bat
 pip install -r requirements.txt
 ```
 Next, copy ```secret-example.py``` into ```secret.py``` and edit its contents
 as you need.
 
 If necessary, setup signal-cli and place the ```signal``` executable into the
-project root folder.
+project root folder. You can do this by ```link```ing your account and running
+```receive``` a few times until it doesn't say any output.
 
 Once you're done, simply run with:
 ```
