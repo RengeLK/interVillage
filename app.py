@@ -16,10 +16,9 @@ import time
 import subprocess
 import schedule
 from threading import Thread
-
 from websockets import WebSocketException
-
 import secret, basic, poll, list, presence, msg  # import all other files
+from poll import message_queue
 
 app = Flask(__name__)
 
@@ -38,15 +37,15 @@ def root():
     return www_index
 
 # Manually add messages to the queue (pre-backend implement)
-'''@app.route('/add', methods=['POST'])
+@app.route('/add', methods=['POST'])
 def post():
-    data = xmltodict.parse(request.data)['xml']
+    data = request.json
     recipient = data['recipient']
     sender = data['sender']
     message_id = data['id']
     content = data['content']
     poll.send_message_to_queue(recipient, sender, message_id, content)
-    return '''
+    return "ok"
 
 # Actual IMPS route
 # noinspection PyBroadException
@@ -188,14 +187,27 @@ def form_status(code: int, desc = None):
     return resp
 
 
-def form_wv_message(content: dict, transaction_id, session_id = None):
+def form_wv_message(content: dict, transaction_id, session_id = None, poll = False):
+    # Autodetect server need for polling
+    if session_id:
+        usid = None
+        for n, i in users.items():
+            if i['session_id'] == session_id:
+                usid = n
+        if usid:
+            for i in message_queue:
+                if i['recipient'] == usid: poll = True
+
     # If a session ID was provided, make sure to set type to Inband
+    # Also finalize the autodetection
     if session_id:
         ses = {
             'SessionType': 'Inband',
             'SessionID': session_id
         }
     else: ses = { 'SessionType': 'Outband' }
+    if poll: tr = 'T'
+    else: tr = 'F'
 
     response = {
         'WV-CSP-Message': {
@@ -205,7 +217,7 @@ def form_wv_message(content: dict, transaction_id, session_id = None):
                     'TransactionDescriptor': {
                         'TransactionMode': 'Response',
                         'TransactionID': transaction_id,
-                        'Poll': 'F'
+                        'Poll': tr
                     },
                     'TransactionContent': content
                 }
@@ -237,19 +249,19 @@ async def discord_websocket(user_token, user_id):
     async with websockets.connect(GATEWAY_URL, max_size=2 ** 23) as websocket:  # Increased buffer size
         print(f"WebSocket connection established for {user_id}")
         # Step 1: Wait for HELLO (op 10), then authenticate
-        await wait_for_hello(websocket, user_token)
+        await wait_for_hello(websocket, user_token, user_id)
         # Step 2: Handle incoming events
         await handle_events(websocket, user_token, user_id)
 
 # Wait for the HELLO (op 10) event, then send identify
-async def wait_for_hello(websocket, token):
+async def wait_for_hello(websocket, token, user_id):
     while True:
         response = await websocket.recv()
         event = json.loads(response)
         if event.get('op') == 10:  # HELLO event
             heartbeat_interval = event['d']['heartbeat_interval'] / 1000
             await identify_with_gateway(websocket, token)
-            asyncio.create_task(heartbeat(websocket, heartbeat_interval, token))
+            asyncio.create_task(heartbeat(websocket, heartbeat_interval, token, user_id))
             break
 
 async def handle_events(websocket, token, user_id):
@@ -284,8 +296,6 @@ async def handle_events(websocket, token, user_id):
                     print(f"New DM for {user_id} from {author}!")
                     poll.send_message_to_queue(user_id, sender, message_id, content)  # Queue the message
                     break
-                else:
-                    print(f"Unrecognized message from {author} for {user_id}")
 
 # Send the identify payload to authenticate the WebSocket connection
 async def identify_with_gateway(websocket, token):
@@ -304,14 +314,15 @@ async def identify_with_gateway(websocket, token):
     await websocket.send(json.dumps(identify_payload))
 
 # Send regular heartbeats to keep the WebSocket connection alive
-async def heartbeat(websocket, interval, token):
+async def heartbeat(websocket, interval, token, user_id):
     while True:
         await asyncio.sleep(interval)
         heartbeat_payload = {"op": 1, "d": last.get(token)}
         try:
             await websocket.send(json.dumps(heartbeat_payload))
         except websockets.ConnectionClosed:
-            print("Connection closed during heartbeat!")
+            print("Connection closed during heartbeat! Attempting to reconnect..")
+            await discord_websocket(token, user_id)
             break
 
 # Run WebSocket listeners for all users with token
@@ -377,8 +388,6 @@ def receive_signal_messages(user_data, user_id):
                     if sender_id:
                         print(f"Received Signal message from {sender_id} to {user_id}")
                         poll.send_message_to_queue(user_id, sender_id, message_id, content)
-                    else:
-                        print(f"Unrecognized Signal sender from {source} to {dest}, ignoring..")
 
                 except json.JSONDecodeError:
                     print(f"Failed to parse message: {message_json}")

@@ -15,8 +15,8 @@ def handle_keep_alive_request(keep_alive_request, transaction, session):
     transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
 
-    # Only accept values below or equal 60 seconds
-    if int(time_to_live) <= 60:
+    # Only accept values below or equal 10 seconds
+    if int(time_to_live) <= 10:
         resp = {
             'KeepAlive-Response': {
                 'Result': app.form_status(200),
@@ -29,7 +29,7 @@ def handle_keep_alive_request(keep_alive_request, transaction, session):
         resp = {
             'KeepAlive-Response': {
                 'Result': app.form_status(605),
-                'KeepAliveTime': 60
+                'KeepAliveTime': 10
             }
         }
     response = app.form_wv_message(resp, transaction_id, session_id)
@@ -47,8 +47,8 @@ def send_message_to_queue(recipient, sender, message_id, content):
 
 def handle_polling_request(session):
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
-    timeout = 20  # maximum time to keep the connection open (in seconds)
-    poll_interval = 2  # how often to check for new messages (in seconds)
+    timeout = 6  # maximum time to keep the connection open (in seconds)
+    poll_interval = 1  # how often to check for new messages (in seconds)
 
     start_time = time.time()
 
