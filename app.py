@@ -405,6 +405,57 @@ def run_signal_receivers():
             print(f"Starting Signal receiver for {user_id}")
             Thread(target=receive_signal_messages, args=(user_data,user_id), daemon=True).start()
 
+##############################
+# Instagram stuff, similar.. #
+# DISCARDED, LEAVING HERE FN #
+##############################
+"""def receive_instagram(user_data, user_id):
+    username = user_data['iguser']
+    password = user_data['igpass']
+
+    print(f"IG {user_id}: Logging in..")
+    # WARNING: this loads any session, and could log in the wrong user in an actual multi-user installation.
+    # Add auto_load_session=False to disable this.
+    user_data['instagram'] = Instagram()
+    session = user_data['instagram']
+
+    if not session.is_authenticated():
+        try:
+            print(f"IG {user_id}: No session, logging in manually..")
+            session.login(username, password)
+        except Exception as e:
+            print(f"IG {user_id}: Auth failed!! {e}")
+
+    print(f"IG {user_id}: Logged in as {session.get_account_info()['username']}!!")
+    print(f"IG {user_id}: Getting initial messages..")
+    print(session.get_messages(limit = 999))
+    print(f"{user_id}'s Instagram receiver is ready!")
+
+    while True:
+        msgs = session.get_messages()
+        print(msgs)
+        for msg in msgs:
+            source = msg["username"]
+            content = msg["text"]
+            msgid = gen_msg_id()
+
+            sender_id = None
+            for user2_id, user_data in users.items():
+                if 'instauser' in user_data and user_data['instauser'] == source:
+                    sender_id = user2_id
+                    break
+            if sender_id:
+                print(f"Received Instagram message from {sender_id} to {user_id}")
+                poll.send_message_to_queue(user_id, sender_id, msgid, content)
+        time.sleep(5)
+
+def run_instagram_receivers():
+    time.sleep(1)  # neat console
+    for user_id, user_data in users.items():
+        if 'iguser' in user_data:
+            print(f"Starting Instagram receiver for {user_id}")
+            Thread(target=receive_instagram, args=(user_data,user_id), daemon=True).start()"""
+
 # Scheduler thread function
 def run_scheduler():
     # Schedule your function
