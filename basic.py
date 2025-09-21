@@ -30,7 +30,7 @@ def handle_login(login_request, transaction):
                 'UserID': user_id,
                 'Result': app.form_status(200),
                 'SessionID': session_id,
-                'KeepAliveTime': time_to_live,
+                'KeepAliveTime': 10,
                 'CapabilityRequest': 'T'
             }
         }

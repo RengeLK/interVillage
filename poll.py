@@ -47,16 +47,25 @@ def send_message_to_queue(recipient, sender, message_id, content):
 
 def handle_polling_request(session):
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
-    timeout = 6  # maximum time to keep the connection open (in seconds)
+    user = "wv:renge"
+    for i, u in app.users.items():
+        if u['session_id'] == session_id:
+            user = i
+            break
+    timeout = 10  # maximum time to keep the connection open (in seconds)
     poll_interval = 1  # how often to check for new messages (in seconds)
+    index = 0
 
     start_time = time.time()
 
     while time.time() - start_time < timeout:
         # Check if there is a new message in the message queue
         if message_queue:
-            new_message = message_queue.pop(0)  # Get the first message in the queue
+            new_message = message_queue[index]  # Get the first message in the queue
             recipient = new_message['recipient']
+            if user != recipient:
+                index += 1
+                continue  # not an intended message
             sender = new_message['sender']
             message = new_message['content']
             length = len(message)
@@ -82,6 +91,7 @@ def handle_polling_request(session):
                 }
             }
 
+            message_queue.pop(index)  # clear the sent message
             response = app.form_wv_message(resp, 0, session_id)
             return app.xml_response(response)
 

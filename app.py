@@ -122,9 +122,9 @@ def handle_wv_csp_message(message_request):
     elif 'Polling-Request' in transaction_content:
         return poll.handle_polling_request(session)
 
-    # Handle MessageDelivered (just ignore it)
+    # Handle MessageDelivered (return more messages if present)
     elif 'MessageDelivered' in transaction_content:
-        return ''
+        return poll.handle_polling_request(session)
 
     # Unknown request type
     else:
@@ -195,8 +195,8 @@ def form_wv_message(content: dict, transaction_id, session_id = None, poll = Fal
             if i['session_id'] == session_id:
                 usid = n
         if usid:
-            for i in message_queue:
-                if i['recipient'] == usid: poll = True
+            if message_queue.count() > 0:
+                poll = True
 
     # If a session ID was provided, make sure to set type to Inband
     # Also finalize the autodetection
