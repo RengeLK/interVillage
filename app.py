@@ -19,6 +19,10 @@ from threading import Thread
 from websockets import WebSocketException
 import secret, basic, poll, list, presence, msg  # import all other files
 from poll import message_queue
+import requests
+import base64
+from PIL import Image
+from io import BytesIO
 app = Flask(__name__)
 
 # Import secrets here so I don't have to rewrite everything
@@ -243,6 +247,18 @@ def xml_response(data_dict):
     xml_data = xml_data.replace('<PresenceSubList>', '<PresenceSubList xmlns="http://www.wireless-village.org/PA1.1">')
     return xml_data, 200, {'Content-Type': 'application/xml'}
 
+def resize_from_base64(base64_input, target_size=(16, 16)):
+    img_bytes = base64.b64decode(base64_input)
+    img = Image.open(BytesIO(img_bytes))
+    # resize
+    if img.mode in ('RGBA', 'P'):
+        img = img.convert('RGB')
+    resized_img = img.resize(target_size, Image.Resampling.LANCZOS)
+    # convert back to base64
+    buffer = BytesIO()
+    resized_img.save(buffer, format='JPEG', quality=60, optimize=True)
+    return base64.b64encode(buffer.getvalue()).decode('utf-8')
+
 #####################################
 # Here starts Discord WS territory! #
 #####################################
@@ -290,6 +306,7 @@ async def handle_events(websocket, token, user_id):
             author_id = message['author']['id']  # Discord ID of the sender
             author = message['author']['username']  # For printing/logging
             content = message['content']
+            attachments = message['attachments']
             msgtype = message["channel_type"]
             message_id = gen_msg_id()
 
@@ -300,9 +317,24 @@ async def handle_events(websocket, token, user_id):
                 # Check if the event author_id matches the 'discord' attribute (meaning they are the sender)
                 if 'discord' in user_data and user_data['discord'] == author_id:
                     sender = user_id2  # This user is the sender
-                    print(f"New DM for {user_id} from {author}!")
-                    poll.send_message_to_queue(user_id, sender, message_id, content)  # Queue the message
-                    break
+
+                    # Properly format msg
+                    if content != "":
+                        print(f"New DM for {user_id} from {author}!")
+                        poll.send_message_to_queue(user_id, sender, message_id, content)  # Queue the message
+                        break
+                    if len(attachments) > 0:
+                        for i in attachments:
+                            dlurl = i["url"]
+                            mime = i["original_content_type"]
+                            filename = i["filename"]
+                            try:
+                                r = requests.get(dlurl)
+                                f = resize_from_base64(base64.b64encode(r.content), (100, 100))
+                                poll.send_message_to_queue(user_id, sender, message_id, f, mime, 'base64')
+                            except Exception as e:
+                                print(f"Tried downloading {filename} but failed! {e}")
+                                poll.send_message_to_queue(user_id, sender, message_id, f"[{filename}]")
 
 # Send the identify payload to authenticate the WebSocket connection
 async def identify_with_gateway(websocket, token):

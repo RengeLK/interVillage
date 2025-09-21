@@ -37,21 +37,27 @@ def handle_keep_alive_request(keep_alive_request, transaction, session):
 
 
 message_queue = []  # dirty, but it works
-def send_message_to_queue(recipient, sender, message_id, content):
+def send_message_to_queue(recipient, sender, message_id, content, type = 'text/plain; charset=utf-8', encoding = 'None'):
     message_queue.append({
         'recipient': recipient,
         'sender': sender,
         'message_id': message_id,
-        'content': content
+        'content': content,
+        'type': type,
+        'encoding': encoding
     })
 
 def handle_polling_request(session):
     session_id = session.get('SessionDescriptor', {}).get('SessionID')
-    user = "wv:renge"
+    user = None
     for i, u in app.users.items():
         if u['session_id'] == session_id:
             user = i
             break
+    if not user:
+        # Invalid session ID
+        resp = app.form_wv_message({'Status': app.form_status(604)}, 0, session_id)
+        return app.xml_response(resp)
     timeout = 10  # maximum time to keep the connection open (in seconds)
     poll_interval = 1  # how often to check for new messages (in seconds)
     index = 0
@@ -70,17 +76,19 @@ def handle_polling_request(session):
             message = new_message['content']
             length = len(message)
             message_id = new_message['message_id']
+            type = new_message['type']
+            encoding = new_message['encoding']
 
             if sender in app.users[recipient]['block_list']:
-                print(f"{sender} is in {recipient}'s block list, trashing message...")
-                continue  # do not forward messages from blocked users
+                message_queue.pop(index)  # do not forward messages from blocked users
+                continue
 
             resp = {
                 'NewMessage': {
                     'MessageInfo': {
                         'MessageID': message_id,
-                        'ContentType': 'text/plain; charset=utf-8',
-                        'ContentEncoding': 'None',
+                        'ContentType': type,
+                        'ContentEncoding': encoding,
                         'ContentSize': length,
                         'Recipient': {'User': {'UserID': recipient}},
                         'Sender': {'User': {'UserID': sender}},
