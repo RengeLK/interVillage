@@ -113,13 +113,13 @@ def handle_block_request(block_request, transaction, session):
                     resp = app.form_wv_message({'Status': app.form_status(531)}, transaction_id, session_id)
                     return app.xml_response(resp)
                 else:
-                    user['block_list'][userID] = None
+                    user['block_list'].append(userID)
 
         # Remove users from the block list
         if removeList:
             for blud, userID in removeList.items():
                 if userID in user['block_list']:
-                    user['block_list'].pop(userID)
+                    user['block_list'].remove(userID)
                 else:
                     # User ID isn't in the block list, respond with error
                     resp = app.form_wv_message({'Status': app.form_status(531)}, transaction_id, session_id)
@@ -138,4 +138,29 @@ def handle_block_request(block_request, transaction, session):
 
 
     response = app.form_wv_message({'Status': app.form_status(200)}, transaction_id, session_id)
+    return app.xml_response(response)
+
+def handle_getblock_request(transaction, session):
+    transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
+    session_id = session.get('SessionDescriptor', {}).get('SessionID')
+
+    # Find user by session_id
+    user = None
+    for u in app.users.values():
+        if u['session_id'] == session_id:
+            user = u
+            break
+
+    if user is None:
+        # Invalid session ID
+        resp = app.form_wv_message({'Status': app.form_status(604)}, transaction_id, session_id)
+        return app.xml_response(resp)
+
+    resp = {
+        'GetBlockedList-Response': {
+            'BlockList': {'InUse' : 'T', 'EntityList': {'UserID': user["block_list"]}},
+            'GrantList': {'InUse': 'F', 'EntityList': {}}  # TODO: GrantList elsewhere
+        }
+    }
+    response = app.form_wv_message(resp, transaction_id, session_id)
     return app.xml_response(response)

@@ -111,3 +111,13 @@ def handle_get_presence_request(get_presence_request, transaction, session):
 
     response = app.form_wv_message(resp, transaction_id, session_id)
     return app.xml_response(response)
+
+def handle_subscribe_presence_request(transaction, session):
+    transaction_id = transaction.get('TransactionDescriptor', {}).get('TransactionID')
+    session_id = session.get('SessionDescriptor', {}).get('SessionID')
+
+    # Because server to client comms is currently not implemented, this is impossible to properly implement.
+    # As such, the requests are currently silently dropped. If I had a proper way to implement S2C, polling
+    # could also be way way better, but oh well.
+
+    return app.xml_response(app.form_wv_message(app.form_status(200), transaction_id, session_id))

@@ -19,7 +19,6 @@ from threading import Thread
 from websockets import WebSocketException
 import secret, basic, poll, list, presence, msg  # import all other files
 from poll import message_queue
-
 app = Flask(__name__)
 
 # Import secrets here so I don't have to rewrite everything
@@ -29,6 +28,7 @@ terms = secret.terms
 wvhook = secret.wvhook
 address = secret.address
 port = secret.port
+debugflag = secret.debugflag
 www_index = open('index.html', 'r')
 
 # Regular browser visitors
@@ -98,7 +98,9 @@ def handle_wv_csp_message(message_request):
     elif 'BlockEntity-Request' in transaction_content:
         return list.handle_block_request(transaction_content['BlockEntity-Request'], transaction, session)
 
-    #TODO: GetBlockedList-Request
+    # Handle GetBlockedList-Request
+    elif 'GetBlockedList-Request' in transaction_content:
+        return list.handle_getblock_request(transaction, session)
 
     # Handle UpdatePresence-Request
     elif 'UpdatePresence-Request' in transaction_content:
@@ -108,7 +110,9 @@ def handle_wv_csp_message(message_request):
     elif 'GetPresence-Request' in transaction_content:
         return presence.handle_get_presence_request(transaction_content['GetPresence-Request'], transaction, session)
 
-    # TODO: (Un)SubscribePresence-Request
+    # Handle (Un)SubscribePresence-Request
+    elif 'SubscribePresence-Request' in transaction_content or 'UnsubscribePresence-Request' in transaction_content:
+        return presence.handle_subscribe_presence_request(transaction, session)
 
     # Handle SendMessage-Request
     elif 'SendMessage-Request' in transaction_content:
@@ -187,7 +191,7 @@ def form_status(code: int, desc = None):
     return resp
 
 
-def form_wv_message(content: dict, transaction_id, session_id = None, poll = False):
+def form_wv_message(content: dict, transaction_id, session_id = None, pollflag = False):
     # Autodetect server need for polling
     if session_id:
         usid = None
@@ -195,8 +199,8 @@ def form_wv_message(content: dict, transaction_id, session_id = None, poll = Fal
             if i['session_id'] == session_id:
                 usid = n
         if usid:
-            if message_queue.count() > 0:
-                poll = True
+            if len(message_queue) > 0:
+                pollflag = True
 
     # If a session ID was provided, make sure to set type to Inband
     # Also finalize the autodetection
@@ -206,7 +210,7 @@ def form_wv_message(content: dict, transaction_id, session_id = None, poll = Fal
             'SessionID': session_id
         }
     else: ses = { 'SessionType': 'Outband' }
-    if poll: tr = 'T'
+    if pollflag: tr = 'T'
     else: tr = 'F'
 
     response = {
@@ -232,7 +236,7 @@ def gen_msg_id():
 
 # Convert dict back to XML
 def xml_response(data_dict):
-    xml_data = xmltodict.unparse(data_dict, pretty=True, full_document=True)
+    xml_data = xmltodict.unparse(data_dict, pretty=debugflag, full_document=True)
     # Manually add the xmlns
     xml_data = xml_data.replace('<WV-CSP-Message>', '<WV-CSP-Message xmlns="http://www.wireless-village.org/CSP1.1">')
     xml_data = xml_data.replace('<TransactionContent>', '<TransactionContent xmlns="http://www.wireless-village.org/TRC1.1">')
@@ -286,10 +290,13 @@ async def handle_events(websocket, token, user_id):
             author_id = message['author']['id']  # Discord ID of the sender
             author = message['author']['username']  # For printing/logging
             content = message['content']
+            msgtype = message["channel_type"]
             message_id = gen_msg_id()
 
-            for user_id2, user_data in users.items():
+            if msgtype != 1:
+                break  # not a DM
 
+            for user_id2, user_data in users.items():
                 # Check if the event author_id matches the 'discord' attribute (meaning they are the sender)
                 if 'discord' in user_data and user_data['discord'] == author_id:
                     sender = user_id2  # This user is the sender
@@ -469,7 +476,7 @@ def run_scheduler():
 
 if __name__ == '__main__':
     # Start Flask server in the main thread
-    flask_thread = Thread(target=app.run, kwargs={'debug': True, 'use_reloader': False, 'host': '::', 'port': port})
+    flask_thread = Thread(target=app.run, kwargs={'debug': debugflag, 'use_reloader': False, 'host': '::', 'port': port})
     flask_thread.start()
 
     # Start WebSocket listeners in a background thread with its own event loop

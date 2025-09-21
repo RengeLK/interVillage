@@ -6,6 +6,7 @@ terms = "Your ToS text here"  # gets sent to each client upon login. You can cha
 wvhook = "https://discord.com/api/webhooks/blablabla"  # All messages to fake users are sent here
 address = 'basement.of.moriya.moe'  # address of your server
 port = 69  # port of your server
+debugflag = False  # change to True to make pretty XML and debug Flask server
 
 # Simulating a basic user database
 users = {
@@ -19,8 +20,8 @@ users = {
         'contact_lists': {
             'wv:johndoe/main'
         },
-        'block_list': {},  # block and grant list functionality, only required for real users
-        'grant_list': {},
+        'block_list': [],  # block and grant list functionality, only required for real users
+        'grant_list': [],
         'default_contact_list': 'wv:johndoe/main',
         'presence': {
             'OnlineStatus': 'F',  # is the user logged-in?
