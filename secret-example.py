@@ -2,7 +2,7 @@
 # User DB cannot be changed by clients at the moment, so they need to be added manually here
 # Some fields may not be necessary for the server to function correctly
 
-terms = "Your ToS text here"  # gets sent to each client upon login. You can change this to read from a file
+terms = "Your ToS text here"  # gets sent to each client upon login. Change to a blank string to disable
 wvhook = "https://discord.com/api/webhooks/blablabla"  # All messages to fake users are sent here
 address = 'basement.of.moriya.moe'  # address of your server
 port = 69  # port of your server

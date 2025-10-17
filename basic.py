@@ -23,7 +23,8 @@ def handle_login(login_request, transaction):
         app.users[user_id]['session_id'] = session_id  # save it
 
         # Send ToS as a message from the admin (defined in secret.py)
-        poll.send_message_to_queue(user_id, 'wv:admin', 'intro', app.terms)
+        if app.terms != "":
+            poll.send_message_to_queue(user_id, 'wv:admin', 'intro', app.terms)
 
         resp = {
             'Login-Response': {
@@ -88,50 +89,50 @@ def handle_client_capability(capability_request, transaction, session):
             user = u
             break
 
-    if user:
-        # Respond with capabilities according to the specs
-        # TODO: grab info from the response, no hard-code
+    if not user:
+        # If client ID is not found, return an error response
         resp = {
             'ClientCapability-Response': {
                 'ClientID': {
-                    'URL': client_id  # Include the ClientID URL as specified
+                    'URL': client_id
                 },
-                'CapabilityList': {
-                    'ClientType': 'MOBILE_PHONE',
-                    'InitialDeliveryMethod': 'P',
-                    'AcceptedContentType': [
-                        #'text/x-vCard; charset=utf-8',
-                        #'text/x-vCalendar; charset=utf-8',
-                        #'application/x-sms',
-                        'text/plain; charset=utf-8'
-                    ],
-                    'AcceptedTransferEncoding': 'BASE64',
-                    'AcceptedContentLength': 32767,
-                    'SupportedBearer': ['HTTP'],
-                    'MultiTrans': 1,
-                    'ParserSize': 32767,
-                    'SupportedCIRMethod': [
-                            'WAPSMS',
-                            'STCP'
-                    ],
-                    'TCPAddress': app.address,
-                    'TCPPort': app.port,
-                    'ServerPollMin': 10,
-                    'DefaultLanguage': 'eng'
-                }
+                'Result': app.form_status(422)  # ClientID Mismatch
             }
         }
         response = app.form_wv_message(resp, transaction_id, session_id)
         return app.xml_response(response)
 
-    # If client ID is not found, return an error response
+    # Respond with capabilities according to the specs
+    # TODO: grab info from the response, no hard-code
     resp = {
         'ClientCapability-Response': {
             'ClientID': {
-                'URL': client_id
+                'URL': client_id  # Include the ClientID URL as specified
             },
-                'Result': app.form_status(422)  # ClientID Mismatch
+            'CapabilityList': {
+                'ClientType': 'MOBILE_PHONE',
+                'InitialDeliveryMethod': 'P',
+                'AcceptedContentType': [
+                    #'text/x-vCard; charset=utf-8',
+                    #'text/x-vCalendar; charset=utf-8',
+                    #'application/x-sms',
+                    'text/plain; charset=utf-8'
+                ],
+                'AcceptedTransferEncoding': 'BASE64',
+                'AcceptedContentLength': 32767,
+                'SupportedBearer': ['HTTP'],
+                'MultiTrans': 1,
+                'ParserSize': 32767,
+                'SupportedCIRMethod': [
+                        'WAPSMS',
+                        'STCP'
+                ],
+                'TCPAddress': app.address,
+                'TCPPort': app.port,
+                'ServerPollMin': 10,
+                'DefaultLanguage': 'eng'
             }
+        }
     }
     response = app.form_wv_message(resp, transaction_id, session_id)
     return app.xml_response(response)

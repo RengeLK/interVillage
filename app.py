@@ -323,7 +323,6 @@ async def handle_events(websocket, token, user_id):
                     if content != "":
                         print(f"New DM for {user_id} from {author}!")
                         poll.send_message_to_queue(user_id, sender, message_id, content)  # Queue the message
-                        break
                     if len(attachments) > 0:
                         for i in attachments:
                             dlurl = i["url"]
@@ -335,7 +334,7 @@ async def handle_events(websocket, token, user_id):
                                 r = requests.get(dlurl)
                                 f = resize_from_base64(base64.b64encode(r.content), (100, 100))
                                 print(f"New attachment DM for {user_id} from {author}!")
-                                poll.send_message_to_queue(user_id, sender, message_id, f, mime, 'None')
+                                poll.send_message_to_queue(user_id, sender, message_id, f, mime, 'BASE64')
                             except Exception as e:
                                 print(f"Tried downloading {filename} but failed! {e}")
                                 poll.send_message_to_queue(user_id, sender, message_id, f"[{filename}]")
