@@ -7,6 +7,7 @@ wvhook = "https://discord.com/api/webhooks/blablabla"  # All messages to fake us
 address = 'basement.of.moriya.moe'  # address of your server
 port = 69  # port of your server
 debugflag = False  # change to True to make pretty XML and debug Flask server
+dcattach = True  # change to False to make all Discord attachment downloading fail
 
 # Simulating a basic user database
 users = {

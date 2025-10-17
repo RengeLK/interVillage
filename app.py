@@ -33,6 +33,7 @@ wvhook = secret.wvhook
 address = secret.address
 port = secret.port
 debugflag = secret.debugflag
+dcattach = secret.dcattach
 www_index = open('index.html', 'r')
 
 # Regular browser visitors
@@ -329,9 +330,12 @@ async def handle_events(websocket, token, user_id):
                             mime = i["original_content_type"]
                             filename = i["filename"]
                             try:
+                                if not dcattach:
+                                    raise Exception("DLing disabled!")
                                 r = requests.get(dlurl)
                                 f = resize_from_base64(base64.b64encode(r.content), (100, 100))
-                                poll.send_message_to_queue(user_id, sender, message_id, f, mime, 'base64')
+                                print(f"New attachment DM for {user_id} from {author}!")
+                                poll.send_message_to_queue(user_id, sender, message_id, f, mime, 'None')
                             except Exception as e:
                                 print(f"Tried downloading {filename} but failed! {e}")
                                 poll.send_message_to_queue(user_id, sender, message_id, f"[{filename}]")
